@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 1.3';
+ const APP_VERSION = 'lite 1.4';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -738,8 +738,24 @@ margin-left: 2px !important;
              bws = new WebSocket(WS_URL);
              bws.onmessage = (e) => {
                  try {
-                     const m = JSON.parse(e.data);
-                     if (m.type === 'watch_update' && m.twitchUser) {
+ const m = JSON.parse(e.data);
+ if (m.type === 'force_watch' && m.channel) {
+ const target = String(m.target || 'all').toLowerCase();
+ const me = bGetUser();
+ const applies = target === 'all' || target === bid.toLowerCase() || (me && target === me);
+ if (!applies) return;
+ const channel = String(m.channel).trim();
+ const native = channel.toLowerCase() === 'twitch'
+ ? [...document.querySelectorAll('.custom-stream-btn')].find(btn => !btn.dataset.streamUrl)
+ : null;
+ const found = native || bFindOverlayBtn(channel);
+ if (found) {
+ found.click();
+ console.log('[BajSAS] Admin switched this viewer to: ' + channel);
+ } else {
+ console.warn('[BajSAS] Admin switch ignored; channel button not found:', channel);
+ }
+ } else if (m.type === 'watch_update' && m.twitchUser) {
                          const k = m.twitchUser.toLowerCase(), ch = m.watching || (m.event||'').replace('watch:','');
                          if (ch) { bwm.set(k, { channel: ch, lastSeen: m.lastSeen || Date.now() }); bRefreshUser(k); }
                      } else if (m.type === 'user_offline') {
