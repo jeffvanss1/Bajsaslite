@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.6';
+ const APP_VERSION = 'lite 2.7';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -142,17 +142,6 @@ margin-left: 2px !important;
  .bajsas-stream-preview img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; border-radius: 5px; background: #18181b; }
  .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
  .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
- .bajsas-watch-badge { position: relative !important; }
- .bajsas-inline-preview {
- display: none !important; position: absolute !important; left: 0 !important;
- bottom: calc(100% + 7px) !important; z-index: 2147483647 !important;
- width: 280px !important; padding: 7px !important; border-radius: 8px !important;
- background: rgba(14,14,18,.98) !important; border: 1px solid rgba(255,255,255,.18) !important;
- box-shadow: 0 12px 34px rgba(0,0,0,.6) !important; color: #efeff1 !important;
- pointer-events: none !important; text-align: left !important; white-space: normal !important;
- }
- .bajsas-watch-badge:hover > .bajsas-inline-preview { display: block !important; }
- .bajsas-inline-preview img { width: 100% !important; aspect-ratio: 16/9; object-fit: cover; display: block !important; border-radius: 5px !important; }
  `;
  document.head.appendChild(s);
  };
@@ -953,112 +942,6 @@ margin-left: 2px !important;
          return '';
      }
 
-     const bPreviewCache = new Map();
-     let bPreviewTimer = null;
-     let bPreviewToken = 0;
-     let bPreviewCard = null;
-
-     function bPreviewSource(channel) {
-         const target = String(channel || '').toLowerCase();
-         const configured = channels.find(([name]) => String(name || '').toLowerCase() === target);
-         const url = configured?.[1] || (/^[a-z0-9_]{3,25}$/i.test(channel) ? `https://www.twitch.tv/${channel}` : '');
-         return { name: configured?.[0] || channel, url };
-     }
-
-     async function bPreviewData(channel) {
-         const source = bPreviewSource(channel);
-         const cached = bPreviewCache.get(source.url || channel);
-         if (cached && Date.now() - cached.at < 60000) return cached.data;
-         let data = { title: source.name, platform: 'Stream', image: '' };
-         try {
-             if (source.url.includes('twitch.tv')) {
-                 const login = extractTwitchLogin(source.url);
-                 data = { title: source.name, platform: 'Twitch', image: login ? `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login.toLowerCase()}-320x180.jpg?t=${Date.now()}` : '' };
-             } else if (isYouTubeUrl(source.url)) {
-                 const id = extractYouTubeVideoId(source.url);
-                 data = { title: source.name, platform: 'YouTube', image: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '' };
-             } else if (source.url.includes('kick.com')) {
-                 const slug = extractKickSlug(source.url);
-                 const r = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`);
-                 const j = await r.json();
-                 data = { title: source.name, platform: 'Kick', image: j?.livestream?.thumbnail?.url || j?.livestream?.thumbnail || j?.banner_image?.url || '' };
-             } else if (source.url.includes('angelthump.com')) {
-                 const name = extractAngelthumpChannel(source.url);
-                 const r = await fetch(`https://api.angelthump.com/v3/streams?username=${encodeURIComponent(name)}`);
-                 const j = await r.json();
-                 data = { title: source.name, platform: 'AngelThump', image: j?.[0]?.thumbnail || j?.[0]?.preview || '' };
-             }
-         } catch {}
-         bPreviewCache.set(source.url || channel, { data, at: Date.now() });
-         return data;
-     }
-
-     function bHidePreview() {
-         clearTimeout(bPreviewTimer);
-         bPreviewToken++;
-         if (bPreviewCard) {
-             bPreviewCard.classList.remove('show');
-             bPreviewCard.style.setProperty('display', 'none', 'important');
-             bPreviewCard.style.setProperty('opacity', '0', 'important');
-         }
-     }
-
-     function bShowPreview(badge) {
-         clearTimeout(bPreviewTimer);
-         const token = ++bPreviewToken;
-         // Capture position now. 7TV may recycle or replace the chat node while
-         // preview metadata is loading.
-         const rect = badge.getBoundingClientRect();
-         const channel = badge.dataset.bajChannel || badge.textContent.trim();
-         bPreviewTimer = setTimeout(async () => {
-             if (token !== bPreviewToken) return;
-             if (!bPreviewCard) {
-                 bPreviewCard = document.createElement('div');
-                 bPreviewCard.className = 'bajsas-stream-preview';
-                 (document.body || document.documentElement).appendChild(bPreviewCard);
-             }
-             // Show a shell immediately; never make visibility depend on a
-             // platform API or thumbnail request completing.
-             bPreviewCard.innerHTML = '';
-             const loadingTitle = document.createElement('div'); loadingTitle.className = 'bajsas-stream-preview-title'; loadingTitle.textContent = channel;
-             const loadingMeta = document.createElement('div'); loadingMeta.className = 'bajsas-stream-preview-meta'; loadingMeta.textContent = 'Loading preview…';
-             bPreviewCard.append(loadingTitle, loadingMeta);
-             const left = Math.max(8, Math.min(window.innerWidth - 288, rect.left));
-             const top = rect.top > 210 ? rect.top - 198 : rect.bottom + 8;
-             bPreviewCard.style.setProperty('left', left + 'px', 'important');
-             bPreviewCard.style.setProperty('top', Math.max(8, top) + 'px', 'important');
-             bPreviewCard.style.setProperty('display', 'block', 'important');
-             bPreviewCard.style.setProperty('opacity', '1', 'important');
-             bPreviewCard.style.setProperty('visibility', 'visible', 'important');
-             bPreviewCard.style.setProperty('pointer-events', 'none', 'important');
-             bPreviewCard.classList.add('show');
-
-             const data = await bPreviewData(channel);
-             if (token !== bPreviewToken) return;
-             bPreviewCard.innerHTML = '';
-             if (data.image) {
-                 const image = document.createElement('img'); image.src = data.image; image.alt = ''; image.referrerPolicy = 'no-referrer';
-                 image.onerror = () => image.remove(); bPreviewCard.appendChild(image);
-             }
-             const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = data.title || channel;
-             const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta'; meta.textContent = `${data.platform} • ${channel}`;
-             bPreviewCard.append(title, meta);
-         }, 150);
-     }
-
-     // Capture-phase delegation survives 7TV replacing/recycling chat nodes and
-     // prevents extension event handlers from blocking preview hover detection.
-     document.addEventListener('mouseover', (event) => {
-         const badge = event.target.closest?.('.bajsas-watch-badge');
-         if (badge) bShowPreview(badge);
-     }, true);
-     document.addEventListener('mouseout', (event) => {
-         const badge = event.target.closest?.('.bajsas-watch-badge');
-         if (!badge) return;
-         if (event.relatedTarget && badge.contains(event.relatedTarget)) return;
-         bHidePreview();
-     }, true);
-
      // Same as old app processMessage — badge shows raw watching value,
      // click tries overlay first, falls back to new tab
      function bProcess(msg) {
@@ -1091,33 +974,6 @@ margin-left: 2px !important;
          const timeStr = new Date(watchInfo.lastSeen || Date.now()).toLocaleTimeString();
          badge.title = 'Watching ' + ch + ' since ' + timeStr + ' (click to join) \u2022 BajSAS';
 
-         // CSS-only fallback preview. It does not depend on any hover event
-         // handler, Twitch propagation, 7TV node lifecycle, or API response.
-         const inlinePreview = document.createElement('span');
-         inlinePreview.className = 'bajsas-inline-preview';
-         const source = bPreviewSource(ch);
-         let staticImage = '';
-         let staticPlatform = 'Stream';
-         if (source.url.includes('twitch.tv')) {
-             const login = extractTwitchLogin(source.url);
-             staticPlatform = 'Twitch';
-             if (login) staticImage = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login.toLowerCase()}-320x180.jpg`;
-         } else if (isYouTubeUrl(source.url)) {
-             const id = extractYouTubeVideoId(source.url);
-             staticPlatform = 'YouTube';
-             if (id) staticImage = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-         } else if (source.url.includes('kick.com')) staticPlatform = 'Kick';
-         else if (source.url.includes('angelthump.com')) staticPlatform = 'AngelThump';
-         if (staticImage) {
-             const previewImage = document.createElement('img');
-             previewImage.src = staticImage; previewImage.alt = ''; previewImage.referrerPolicy = 'no-referrer';
-             previewImage.onerror = () => previewImage.remove(); inlinePreview.appendChild(previewImage);
-         }
-         const previewTitle = document.createElement('span'); previewTitle.className = 'bajsas-stream-preview-title'; previewTitle.textContent = source.name || ch;
-         const previewMeta = document.createElement('span'); previewMeta.className = 'bajsas-stream-preview-meta'; previewMeta.textContent = staticPlatform + ' • ' + ch;
-         inlinePreview.append(previewTitle, previewMeta);
-         badge.appendChild(inlinePreview);
-
          // Click: try overlay button first, else load in existing overlay iframe
          // Same as old app: _doLoadStream(found.url, found.name, 'overlay')
          // Never window.open — keeps 1 overlay on the page
@@ -1139,10 +995,6 @@ margin-left: 2px !important;
          };
 
          // Same event handlers as old app — beat 7TV pointer capture
-         // Direct non-bubbling listeners are the primary path. Delegation below
-         // remains a fallback for chat nodes added by extensions.
-         badge.addEventListener('mouseenter', () => bShowPreview(badge));
-         badge.addEventListener('mouseleave', bHidePreview);
          badge.addEventListener('pointerdown', (e) => e.stopPropagation(), true);
          badge.addEventListener('click', (e) => {
              e.stopPropagation();
