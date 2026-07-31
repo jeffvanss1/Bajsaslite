@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.0';
+ const APP_VERSION = 'lite 2.1';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -687,17 +687,13 @@ margin-left: 2px !important;
          return null;
      }
 
-     // Re-scan chat for messages that were processed but didn't get a badge
-     function bRescanChat() {
-         const chatBox = document.querySelector('.stream-chat');
-         if (!chatBox) return;
-         chatBox.querySelectorAll('[data-baj-processed]').forEach(el => {
-             if (!el.querySelector('.bajsas-watch-badge')) {
-                 el.removeAttribute('data-baj-processed');
-             }
-         });
-         bScan(chatBox);
-     }
+ // Scan only genuinely unprocessed messages. Never reprocess an old message
+ // with a newer watch state, otherwise history is rewritten after a switch.
+ function bRescanChat() {
+ const chatBox = document.querySelector('.stream-chat');
+ if (!chatBox) return;
+ bScan(chatBox);
+ }
 
      function bApplyUserSnapshot(users) {
          bwm.clear();
@@ -921,10 +917,8 @@ margin-left: 2px !important;
          // Never window.open — keeps 1 overlay on the page
          const handleBadgeAction = () => {
              try {
-                 // Read the current dataset value instead of the channel captured
-                 // when this badge was first created.
-                 const currentChannel = badge.dataset.bajChannel || ch;
-                 const found = bFindOverlayBtn(currentChannel);
+                 // Each message keeps the channel captured when it was created.
+                 const found = bFindOverlayBtn(ch);
                  if (found) {
                      found.click();
                  } else {
@@ -933,7 +927,7 @@ margin-left: 2px !important;
                      i.src = '';
                      i.style.display = 'none';
                      removeForsenChat();
-                     location.assign('/' + encodeURIComponent(currentChannel));
+                     location.assign('/' + encodeURIComponent(ch));
                  }
              } catch(err) { console.warn('[BajSAS] join error', err); }
          };
@@ -962,33 +956,14 @@ margin-left: 2px !important;
             } catch {}
      }
 
-     // Update existing badges immediately, then add badges to unprocessed
-     // messages. Previously existing badges stayed stale until another message.
+     // Existing badges are historical snapshots: never rewrite old messages.
+     // Only unprocessed/new messages receive the user's latest channel.
  function bRefreshUser(username) {
  const watchInfo = bwm.get(username);
  if (!watchInfo?.channel) return;
- const ch = watchInfo.channel;
- document.querySelectorAll('.bajsas-watch-badge').forEach(badge => {
- if (badge.dataset.bajUser !== username) return;
- badge.textContent = ch.slice(0, 20);
- badge.dataset.bajChannel = ch;
- badge.title = 'Watching ' + ch + ' (click to join) • BajSAS';
- badge.style.opacity = '';
- badge.style.textDecoration = '';
- badge.style.background = '';
- badge.style.color = '';
- });
-         let added = false;
-         for (const msg of document.querySelectorAll('[data-a-target="chat-line-message"], .seventv-user-message, .seventv-ban-slider')) {
-             if (msg.getAttribute('data-baj-processed')) continue;
-             const name = bGetName(msg);
-             if (name !== username) continue;
-             bProcess(msg);
-             added = true;
-         }
-         // If no new messages found, force a scan
-         if (!added) bRescanChat();
-     }
+ // Updating bwm is enough. MutationObserver will apply this state only to
+ // messages inserted from this point onward.
+ }
 
      // When user goes offline, dim their badges but don't remove —
      // the messages were real, the user WAS watching at that time.
@@ -1001,8 +976,8 @@ margin-left: 2px !important;
          });
      }
 
-     // Scan for new messages. Existing badges are updated directly by
-     // bRefreshUser whenever a watch_update arrives.
+     // Scan only for messages that do not have a badge yet. Existing message
+     // badges remain immutable historical snapshots.
      function bRefreshAll() {
          bRescanChat();
      }
