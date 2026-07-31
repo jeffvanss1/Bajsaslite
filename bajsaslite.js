@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 1.4';
+ const APP_VERSION = 'lite 1.8';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -602,13 +602,12 @@ margin-left: 2px !important;
  {
      const BASE_URL   = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
      const PING_KEY   = 'bajsas_ping_2024'; // sent in ?key= and POST body for auth
-     const STATS_URL  = BASE_URL + '/stats?key=bajsas_secret_2024';
-     const WS_URL     = 'wss://' + BASE_URL.replace('https://','') + '/ws?key=bajsas_secret_2024';
-     const PING_URL   = BASE_URL + '/ping';
-     const TOKEN_URL  = BASE_URL + '/token';
-     const AES_KEY    = STATS_URL.match(/[?&]key=([^&]+)/)?.[1] || '';
+ const WS_URL = 'wss://' + BASE_URL.replace('https://','') + '/ws?key=bajsas_secret_2024&version=' + encodeURIComponent(APP_VERSION);
+ const PING_URL = BASE_URL + '/ping';
+ const TOKEN_URL = BASE_URL + '/token';
 
  let bwm = new Map(); // username → { channel, lastSeen }
+ const bOfflineTimers = new Map(); // username → pending offline timeout
  let bws = null, bwsTimer = null, bchatObs = null;
      let bid = '';
      let bActiveStream = ''; // tracks which overlay stream is active (empty = native Twitch)
@@ -688,16 +687,6 @@ margin-left: 2px !important;
          return null;
      }
 
-     async function bDec(encObj, keyStr) {
-         const enc = new TextEncoder();
-         const hash = await crypto.subtle.digest('SHA-256', enc.encode(keyStr));
-         const aesKey = await crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['decrypt']);
-         const iv = Uint8Array.from(atob(encObj.iv), c => c.charCodeAt(0));
-         const data = Uint8Array.from(atob(encObj.data), c => c.charCodeAt(0));
-         const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, data);
-         return JSON.parse(new TextDecoder().decode(dec));
-     }
-
      // Re-scan chat for messages that were processed but didn't get a badge
      function bRescanChat() {
          const chatBox = document.querySelector('.stream-chat');
@@ -710,26 +699,19 @@ margin-left: 2px !important;
          bScan(chatBox);
      }
 
-     async function bFetchMap() {
-         try {
-             const r = await fetch(STATS_URL, { cache: 'no-store' });
-             if (!r.ok) { console.warn('[BajSAS] stats fetch failed:', r.status); return; }
-             let d = await r.json();
-             if (d.encrypted) { try { d = await bDec(d, AES_KEY); } catch(e) { console.warn('[BajSAS] decrypt failed:', e); return; } }
-             bwm.clear();
-             for (const u of (d.users || [])) {
-                 const ch = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
-                 const tw = (u.twitchUser || '').toLowerCase();
-                 if (tw && Date.now() - u.lastSeen < 86400000) {
-                     const ex = bwm.get(tw);
-                     if (ex && ex.lastSeen > u.lastSeen) continue;
-                     bwm.set(tw, { channel: ch || '', lastSeen: u.lastSeen });
-                 }
+     function bApplyUserSnapshot(users) {
+         bwm.clear();
+         for (const u of (users || [])) {
+             const tw = String(u.twitchUser || '').toLowerCase();
+             const ch = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
+             if (!tw || !ch || Date.now() - (u.lastSeen || 0) >= 86400000) continue;
+             const existing = bwm.get(tw);
+             if (!existing || existing.lastSeen <= (u.lastSeen || 0)) {
+                 bwm.set(tw, { channel: ch, lastSeen: u.lastSeen || Date.now() });
              }
-             console.log('[BajSAS] WatchMap built:', bwm.size, 'entries');
-             bRefreshAll();
-             bRescanChat();
-         } catch(e) { console.warn('[BajSAS] fetchMap error:', e); }
+         }
+         bRefreshAll();
+         bRescanChat();
      }
 
      function bConnectWS() {
@@ -739,7 +721,9 @@ margin-left: 2px !important;
              bws.onmessage = (e) => {
                  try {
  const m = JSON.parse(e.data);
- if (m.type === 'force_watch' && m.channel) {
+ if (m.type === 'connected' && Array.isArray(m.users)) {
+ bApplyUserSnapshot(m.users);
+ } else if (m.type === 'force_watch' && m.channel) {
  const target = String(m.target || 'all').toLowerCase();
  const me = bGetUser();
  const applies = target === 'all' || target === bid.toLowerCase() || (me && target === me);
@@ -756,12 +740,34 @@ margin-left: 2px !important;
  console.warn('[BajSAS] Admin switch ignored; channel button not found:', channel);
  }
  } else if (m.type === 'watch_update' && m.twitchUser) {
-                         const k = m.twitchUser.toLowerCase(), ch = m.watching || (m.event||'').replace('watch:','');
-                         if (ch) { bwm.set(k, { channel: ch, lastSeen: m.lastSeen || Date.now() }); bRefreshUser(k); }
-                     } else if (m.type === 'user_offline') {
-                         const k = (m.twitchUser||'').toLowerCase();
-                         if (k) setTimeout(() => { if (!bwm.has(k)) return; bwm.delete(k); bRemoveUser(k); }, 2000);
-                     }
+ const k = m.twitchUser.toLowerCase();
+ const ch = m.watching || (m.event || '').replace('watch:', '');
+ const incomingTime = m.lastSeen || Date.now();
+ const current = bwm.get(k);
+ // A pagehide/offline event from the old stream can arrive immediately before
+ // the new watch event. Cancel its pending removal and reject stale updates.
+ const pendingOffline = bOfflineTimers.get(k);
+ if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(k); }
+ if (ch && (!current || incomingTime >= current.lastSeen)) {
+ bwm.set(k, { channel: ch, lastSeen: incomingTime });
+ bRefreshUser(k);
+ }
+ } else if (m.type === 'user_offline') {
+ const k = (m.twitchUser || '').toLowerCase();
+ if (k) {
+ const snapshotTime = bwm.get(k)?.lastSeen || 0;
+ clearTimeout(bOfflineTimers.get(k));
+ const timer = setTimeout(() => {
+ bOfflineTimers.delete(k);
+ // Do not delete a newer watch update that arrived after this offline event.
+ const current = bwm.get(k);
+ if (!current || current.lastSeen !== snapshotTime) return;
+ bwm.delete(k);
+ bRemoveUser(k);
+ }, 2000);
+ bOfflineTimers.set(k, timer);
+ }
+ }
                  } catch {}
              };
              bws.onclose = () => { bws = null; if (bwsTimer) clearTimeout(bwsTimer); bwsTimer = setTimeout(bConnectWS, 8000); };
@@ -878,6 +884,7 @@ margin-left: 2px !important;
          const badge = document.createElement('span');
          badge.className = 'bajsas-watch-badge';
          badge.dataset.bajUser = username;
+         badge.dataset.bajChannel = ch;
          badge.textContent = ch.slice(0,20);
          const timeStr = new Date(watchInfo.lastSeen || Date.now()).toLocaleTimeString();
          badge.title = 'Watching ' + ch + ' since ' + timeStr + ' (click to join) \u2022 BajSAS';
@@ -887,18 +894,19 @@ margin-left: 2px !important;
          // Never window.open — keeps 1 overlay on the page
          const handleBadgeAction = () => {
              try {
-                 const found = bFindOverlayBtn(ch);
+                 // Read the current dataset value instead of the channel captured
+                 // when this badge was first created.
+                 const currentChannel = badge.dataset.bajChannel || ch;
+                 const found = bFindOverlayBtn(currentChannel);
                  if (found) {
                      found.click();
                  } else {
-                     // Not in button list — restore native mode and navigate to the channel
-                     // No overlay iframe for Twitch channels — the page IS Twitch
                      v.muted = false;
                      try { v.play(); } catch {}
                      i.src = '';
                      i.style.display = 'none';
                      removeForsenChat();
-                     location.assign('/' + encodeURIComponent(ch));
+                     location.assign('/' + encodeURIComponent(currentChannel));
                  }
              } catch(err) { console.warn('[BajSAS] join error', err); }
          };
@@ -927,14 +935,22 @@ margin-left: 2px !important;
             } catch {}
      }
 
-     // Same as old app _refreshBadgesForUser
-     // Only adds badges to messages that don't have one yet — does NOT change
-     // existing badges. Each message keeps the channel the user was watching
-     // at the time that message was sent.
+     // Update existing badges immediately, then add badges to unprocessed
+     // messages. Previously existing badges stayed stale until another message.
  function bRefreshUser(username) {
  const watchInfo = bwm.get(username);
  if (!watchInfo?.channel) return;
- // Only add badges to messages that don't have one yet
+ const ch = watchInfo.channel;
+ document.querySelectorAll('.bajsas-watch-badge').forEach(badge => {
+ if (badge.dataset.bajUser !== username) return;
+ badge.textContent = ch.slice(0, 20);
+ badge.dataset.bajChannel = ch;
+ badge.title = 'Watching ' + ch + ' (click to join) • BajSAS';
+ badge.style.opacity = '';
+ badge.style.textDecoration = '';
+ badge.style.background = '';
+ badge.style.color = '';
+ });
          let added = false;
          for (const msg of document.querySelectorAll('[data-a-target="chat-line-message"], .seventv-user-message, .seventv-ban-slider')) {
              if (msg.getAttribute('data-baj-processed')) continue;
@@ -958,9 +974,8 @@ margin-left: 2px !important;
          });
      }
 
-     // Same as old app _refreshAllBadges — walks DOM via badge→colon→author
-     // Same as old app _refreshAllBadges — scans for new messages that need badges.
-     // Does NOT change existing badges — each message keeps the channel from when it was sent.
+     // Scan for new messages. Existing badges are updated directly by
+     // bRefreshUser whenever a watch_update arrives.
      function bRefreshAll() {
          bRescanChat();
      }
@@ -995,9 +1010,6 @@ margin-left: 2px !important;
          setTimeout(bStartObs, 1500);
          setTimeout(bStartObs, 3000);
 
-         setTimeout(bFetchMap, 500);
-         setTimeout(bFetchMap, 2000);
-         setTimeout(bFetchMap, 5000);
      }
 
      function bStartObs() {
@@ -1031,7 +1043,6 @@ margin-left: 2px !important;
                  }
                  bStartPing();
                  bRefreshAll();
-                 setTimeout(bFetchMap, 1000);
              });
          });
      }
@@ -1061,9 +1072,6 @@ margin-left: 2px !important;
     bConnectWS();
     bStartObs();
     bStartPing();
-    bFetchMap();
-    setTimeout(bFetchMap, 1000);
-    setInterval(bFetchMap, 120000);
 
      // Safety net: periodic re-scan for messages that didn't get badges
      setInterval(() => { bRescanChat(); }, 15000);
