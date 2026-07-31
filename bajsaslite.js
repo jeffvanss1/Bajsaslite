@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 1.8';
+ const APP_VERSION = 'lite 1.9';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -785,11 +785,24 @@ margin-left: 2px !important;
              const keyQ = 'key=' + encodeURIComponent(PING_KEY);
              const tokQ = bToken ? '&tok=' + encodeURIComponent(bToken) : '';
              const query = '?' + keyQ + tokQ + '&id=' + encodeURIComponent(bid) + '&version=' + encodeURIComponent(APP_VERSION) + '&event=' + encodeURIComponent(ev) + '&twitchUser=' + encodeURIComponent(tw) + '&t=' + Date.now();
-             // Primary: fetch with keepalive (works everywhere except Brave shields)
-             try { fetch(PING_URL + query, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true, mode: 'cors' }).catch(()=>{}); } catch {}
-             // Fallback: image beacon (survives Brave/ublock blocking POSTs)
-             try { const img = new Image(); img.src = PING_URL + query; } catch {}
-             try { if (navigator.sendBeacon) { const blob = new Blob([body], { type: 'application/json' }); navigator.sendBeacon(PING_URL + '?' + keyQ + tokQ, blob); } } catch {}
+             // Send one request. The previous implementation fired fetch, an
+             // image beacon, and sendBeacon simultaneously; button handlers also
+             // called bPing twice. That produced up to six writes for one switch
+             // and queued Durable Object storage before the WebSocket update.
+             // Use the image transport only when the primary fetch actually fails.
+             try {
+                 fetch(PING_URL + query, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body,
+                     keepalive: true,
+                     mode: 'cors'
+                 }).catch(() => {
+                     try { const img = new Image(); img.src = PING_URL + query; } catch {}
+                 });
+             } catch {
+                 try { const img = new Image(); img.src = PING_URL + query; } catch {}
+             }
          } catch {}
      }
 
@@ -1040,12 +1053,12 @@ margin-left: 2px !important;
                      bLastProcessedCh = ch;
                      if (ch) bPing('watch:' + ch.slice(0,30));
                      else bPing('heartbeat');
-                 }
-                 bStartPing();
-                 bRefreshAll();
-             });
+             }
+             // The branch above already sent the new state exactly once.
+             bRefreshAll();
          });
-     }
+     });
+ }
 
      // Init
      bid = bGetId();
