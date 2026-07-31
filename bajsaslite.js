@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 4.1';
+ const APP_VERSION = 'lite 4.4';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -811,20 +811,25 @@ margin-left: 2px !important;
  const TOKEN_URL = BASE_URL + '/token';
 
  const WATCH_CACHE_KEY = 'bajsas_watch_cache_v1';
- const WATCH_CACHE_TTL = 10 * 60 * 1000;
- let bwm = new Map(); // username → { channel, lastSeen }
+ const WATCH_CACHE_TTL = 24 * 60 * 60 * 1000; // bootstrap cache; WebSocket replaces it after connect
+ let bwm = new Map(); // authoritative live map
+ const bLocalWatchCache = new Map(); // fast startup/message fallback
  try {
  const cached = JSON.parse(localStorage.getItem(WATCH_CACHE_KEY) || '[]');
  const now = Date.now();
  for (const [username, info] of cached) {
- if (username && info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL) bwm.set(username, info);
+ if (username && info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL) {
+ bLocalWatchCache.set(username, info);
+ bwm.set(username, info);
+ }
  }
  dbg('watch-cache:hydrated', { entries: bwm.size });
  } catch (error) { dbg('watch-cache:error', { error: String(error) }); }
  const bSaveWatchCache = () => {
  try {
  const now = Date.now();
- const entries = [...bwm].filter(([, info]) => info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL).slice(0, 500);
+ for (const [username, info] of bwm) if (info?.channel) bLocalWatchCache.set(username, info);
+ const entries = [...bLocalWatchCache].filter(([, info]) => info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL).slice(0, 500);
  localStorage.setItem(WATCH_CACHE_KEY, JSON.stringify(entries));
  dbg('watch-cache:saved', { entries: entries.length });
  } catch (error) { dbg('watch-cache:save-error', { error: String(error) }); }
@@ -996,6 +1001,7 @@ margin-left: 2px !important;
  const current = bwm.get(k);
  if (!current || current.lastSeen !== snapshotTime) return;
  bwm.delete(k);
+ bLocalWatchCache.delete(k);
  bSaveWatchCache();
  bRemoveUser(k);
  }, 2000);
@@ -1081,58 +1087,78 @@ margin-left: 2px !important;
          bMessageTimers.set(msg, timer);
      }
 
+     const MESSAGE_SELECTOR = '[data-a-target="chat-line-message"], .seventv-user-message, .seventv-ban-slider';
+
      function bScan(root) {
-         const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
-             acceptNode: (n) => {
-                 if (n.tagName !== 'SPAN') return NodeFilter.FILTER_SKIP;
-                 const t = n.textContent;
-                 return ((t === ': ' || t === ':' || t === ':\u00A0') && n.children.length === 0) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
-             }
-         });
-         const found = [];
-         while (w.nextNode()) found.push(w.currentNode);
-         for (const cs of found) {
-             const msg = cs.closest('[data-a-target="chat-line-message"]') || cs.closest('.seventv-user-message') || cs.closest('.seventv-ban-slider') || cs.parentElement;
-             if (msg && !msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
+         const messages = [];
+         if (root?.nodeType === 1 && root.matches?.(MESSAGE_SELECTOR)) messages.push(root);
+         if (root?.querySelectorAll) messages.push(...root.querySelectorAll(MESSAGE_SELECTOR));
+         for (const msg of new Set(messages)) {
+             if (!msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
          }
      }
 
      function bCheckNode(node) {
          if (node.nodeType !== 1) return;
-         if (node.tagName === 'SPAN' && node.children.length === 0) {
-             const t = node.textContent;
-             if (t === ': ' || t === ':' || t === ':\u00A0') {
-                 const msg = node.closest('[data-a-target="chat-line-message"]') || node.closest('.seventv-user-message') || node.closest('.seventv-ban-slider') || node.parentElement;
-                 if (msg && !msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
-                 return;
-             }
-         }
-         for (const sp of node.querySelectorAll('span')) {
-             const t = sp.textContent;
-             if ((t === ': ' || t === ':' || t === ':\u00A0') && sp.children.length === 0) {
-                 const msg = sp.closest('[data-a-target="chat-line-message"]') || sp.closest('.seventv-user-message') || sp.closest('.seventv-ban-slider') || sp.parentElement;
-                 if (msg && !msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
-             }
-         }
+         // Process complete message containers directly instead of waiting for
+         // a fragile text node containing exactly ':'. This works with native
+         // Twitch, localized markup, 7TV, BTTV, and FFZ DOM variations.
+         const closest = node.closest?.(MESSAGE_SELECTOR);
+         if (closest && !closest.getAttribute('data-baj-processed')) bQueueProcess(closest);
+         bScan(node);
      }
 
      function bGetName(msg) {
-         for (const sp of msg.querySelectorAll('span')) {
-             const t = sp.textContent;
-             if ((t === ': ' || t === ':' || t === ':\u00A0') && sp.children.length === 0) {
-                 let prev = sp.previousElementSibling;
-                 if (prev) {
-                     const deep = prev.querySelector('.seventv-chat-user-username,[data-a-target="chat-message-username"],.chat-author__display-name');
-                     const te = deep || prev;
-                     const n = te.textContent.trim().toLowerCase().replace('@','').split(' ')[0].split(':')[0];
-                     if (/^[a-z0-9_]{3,25}$/.test(n)) return n;
-                 }
+         const valid = value => {
+             const n = String(value || '').trim().toLowerCase().replace(/^@/, '');
+             return /^[a-z0-9_]{3,25}$/.test(n) ? n : '';
+         };
+
+         // Prefer machine-readable login attributes. Display names may contain
+         // Unicode, localized text, badges, or casing that differs from login.
+         for (const el of [msg, ...msg.querySelectorAll('[data-user], [data-login], [data-username], [data-a-user]')]) {
+             const n = valid(el.dataset?.user || el.dataset?.login || el.dataset?.username || el.getAttribute?.('data-a-user'));
+             if (n) { dbg('badge:username-found', { method: 'attribute', username: n }); return n; }
+         }
+
+         const selectors = [
+             '[data-a-target="chat-message-username"]',
+             '.seventv-chat-user-username',
+             '.chat-author__display-name',
+             '[data-test-selector="message-username"]',
+             'button[aria-label*="username" i]'
+         ];
+         for (const selector of selectors) {
+             const el = msg.querySelector(selector);
+             if (!el) continue;
+             const candidates = [
+                 el.getAttribute('data-user'), el.getAttribute('data-login'), el.getAttribute('data-username'),
+                 el.getAttribute('data-a-user'), el.textContent
+             ];
+             for (const candidate of candidates) {
+                 const n = valid(candidate);
+                 if (n) { dbg('badge:username-found', { method: selector, username: n }); return n; }
              }
          }
-         for (const sel of ['[data-a-target="chat-message-username"]','.seventv-chat-user-username','.chat-author__display-name']) {
-             try { const el = msg.querySelector(sel); if (el) { const n = el.textContent.trim().toLowerCase(); if (/^[a-z0-9_]{3,25}$/.test(n)) return n; } } catch {}
-         }
+
+         dbg('badge:username-missing', { html: msg.outerHTML?.slice(0, 500) || '' });
          return '';
+     }
+
+     function bLookupWatch(username) {
+         const live = bwm.get(username);
+         if (live?.channel) {
+             dbg('badge:watch-found', { username, channel: live.channel, source: 'memory' });
+             return live;
+         }
+         const cached = bLocalWatchCache.get(username);
+         if (cached?.channel && Date.now() - (cached.lastSeen || 0) < WATCH_CACHE_TTL) {
+             bwm.set(username, cached);
+             dbg('badge:watch-found', { username, channel: cached.channel, source: 'localStorage' });
+             return cached;
+         }
+         dbg('badge:watch-missing', { username });
+         return null;
      }
 
      // Same as old app processMessage — badge shows raw watching value,
@@ -1140,10 +1166,19 @@ margin-left: 2px !important;
      function bProcess(msg) {
          if (msg.getAttribute('data-baj-processed')) return;
          if (msg.classList?.contains('seventv-ban-slider')) { const inner = msg.querySelector('.seventv-user-message'); if (inner) { bProcess(inner); return; } }
-         msg.setAttribute('data-baj-processed', '1');
          const username = msg.dataset.bajSnapshotUser || bGetName(msg);
-         if (!username) return;
-         const watchInfo = bwm.get(username);
+         if (!username) {
+             // Twitch/7TV often inserts the message container in multiple DOM
+             // mutations. Do not permanently mark a half-built message as done.
+             const attempts = Number(msg.dataset.bajNameAttempts || 0) + 1;
+             msg.dataset.bajNameAttempts = String(attempts);
+             dbg('badge:username-not-ready', { attempts });
+             if (attempts < 20) bQueueProcess(msg, 50);
+             return;
+         }
+         delete msg.dataset.bajNameAttempts;
+         msg.setAttribute('data-baj-processed', '1');
+         const watchInfo = bLookupWatch(username);
          const snapshotChannel = msg.dataset.bajSnapshotChannel || '';
          if (!snapshotChannel && (!watchInfo || !watchInfo.channel)) {
              // Keep only a short-lived pending marker. A watch_update can fill
