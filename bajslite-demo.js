@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.4';
+ const APP_VERSION = 'lite 3.5';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -23,7 +23,10 @@ javascript:(async function(){
  channels = text.trim().split('\n').map(line => line.split(';'));
  } catch (e) { console.log('[BajSAS Lite] Failed to load channel list:', e); return; }
 
- const savedStream = localStorage.getItem(LS_STREAM);
+ // Always start on the native Twitch player. Stream selection is session-only;
+ // discard values saved by older versions instead of restoring an overlay.
+ localStorage.removeItem(LS_STREAM);
+ const savedStream = 'Twitch';
  const isTheaterSaved = localStorage.getItem(LS_THEATER) === "1";
  let hideUntilHover = localStorage.getItem(LS_HIDE) === "1";
 
@@ -633,8 +636,8 @@ margin-left: 2px !important;
  }
  }
 
- localStorage.setItem(LS_STREAM, text);
- setActive(btn);
+     // Do not persist the selected stream across app/page starts.
+     setActive(btn);
  };
 
  if (!isNative && src) {
