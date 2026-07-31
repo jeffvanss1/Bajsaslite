@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.7';
+ const APP_VERSION = 'lite 2.8';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -419,10 +419,32 @@ margin-left: 2px !important;
  } else if (isYouTubeUrl(url)) {
  const id = extractYouTubeVideoId(url);
  data = { title: name, platform: 'YouTube', image: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '' };
- } else if (url.includes('kick.com') || url.includes('angelthump.com')) {
+ } else if (url.includes('kick.com')) {
+ const slug = extractKickSlug(url);
+ let j = null;
+ try {
+ // Kick often blocks Cloudflare Worker IPs but allows its public API from
+ // browsers. Prefer the direct request and use the Worker only as fallback.
+ const r = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`);
+ if (r.ok) j = await r.json();
+ } catch {}
+ if (j) {
+ const thumb = typeof j?.livestream?.thumbnail === 'string' ? j.livestream.thumbnail : j?.livestream?.thumbnail?.url;
+ data = {
+ title: j?.livestream?.session_title || j?.user?.username || name,
+ platform: 'Kick',
+ image: thumb || j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic || '',
+ live: !!j?.livestream
+ };
+ } else {
+ const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
+ const fallback = await r.json();
+ data = { title: fallback.title || name, platform: 'Kick', image: fallback.image || '', live: fallback.live === true };
+ }
+ } else if (url.includes('angelthump.com')) {
  const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
  const j = await r.json();
- data = { title: j.title || name, platform: j.platform || 'Stream', image: j.image || '', live: j.live === true };
+ data = { title: j.title || name, platform: 'AngelThump', image: j.image || '', live: j.live === true };
  }
  } catch {}
  buttonPreviewCache.set(url, { data, at: Date.now() });
