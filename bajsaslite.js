@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.1';
+ const APP_VERSION = 'lite 3.6';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -23,7 +23,10 @@ javascript:(async function(){
  channels = text.trim().split('\n').map(line => line.split(';'));
  } catch (e) { console.log('[BajSAS Lite] Failed to load channel list:', e); return; }
 
- const savedStream = localStorage.getItem(LS_STREAM);
+ // Always start on the native Twitch player. Stream selection is session-only;
+ // discard values saved by older versions instead of restoring an overlay.
+ localStorage.removeItem(LS_STREAM);
+ const savedStream = 'Twitch';
  const isTheaterSaved = localStorage.getItem(LS_THEATER) === "1";
  let hideUntilHover = localStorage.getItem(LS_HIDE) === "1";
 
@@ -131,6 +134,27 @@ margin-left: 2px !important;
  transform: scale(0.96) !important;
  background: rgba(145,71,255,0.35) !important;
  }
+ .bajsas-stream-preview {
+ position: fixed; z-index: 2147483647; width: 292px; padding: 7px;
+ border-radius: 9px; background: rgba(14,14,18,.96);
+ border: 1px solid rgba(255,255,255,.16); box-shadow: 0 16px 42px rgba(0,0,0,.58);
+ color: #efeff1; font: 12px/1.35 Arial,sans-serif; pointer-events: none;
+ opacity: 0; visibility: hidden; transform: translate3d(0,8px,0) scale(.975);
+ transform-origin: 50% 100%; transition: opacity 140ms ease-out,transform 180ms cubic-bezier(.2,.8,.2,1),visibility 0s linear 180ms;
+ will-change: transform,opacity; backface-visibility: hidden; contain: layout paint style;
+ }
+ .bajsas-stream-preview.show { opacity: 1; visibility: visible; transform: translate3d(0,0,0) scale(1); transition-delay: 0s; }
+ .bajsas-stream-preview img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; border-radius: 6px; background: #18181b; transform: translateZ(0); }
+ .bajsas-offline-banner { width:100%; aspect-ratio:16/9; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; border-radius:6px; overflow:hidden; position:relative; background:radial-gradient(circle at 50% 20%,rgba(145,71,255,.28),transparent 48%),linear-gradient(135deg,#19151f,#0e0e12); color:#efeff1; border:1px solid rgba(255,255,255,.08); }
+ .bajsas-offline-banner::before { content:""; position:absolute; inset:0; opacity:.16; background:repeating-linear-gradient(135deg,transparent 0 12px,rgba(255,255,255,.08) 12px 13px); }
+ .bajsas-offline-banner.is-live { background:radial-gradient(circle at 50% 20%,rgba(0,200,83,.3),transparent 48%),linear-gradient(135deg,#102019,#0e0e12); }
+ .bajsas-offline-banner.is-live .bajsas-offline-icon { color:#69f0ae; border-color:rgba(105,240,174,.45); background:rgba(0,200,83,.18); }
+ .bajsas-offline-icon { z-index:1; width:54px; height:54px; display:grid; place-items:center; border-radius:8px; background:rgba(145,71,255,.2); border:1px solid rgba(191,148,255,.38); font-size:20px; overflow:hidden; }
+ .bajsas-offline-icon img { width:100% !important; height:100% !important; aspect-ratio:1; object-fit:contain !important; display:block !important; border-radius:7px !important; }
+ .bajsas-offline-label { z-index:1; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+ .bajsas-offline-platform { z-index:1; color:#adadb8; font-size:10px; }
+ .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
  `;
  document.head.appendChild(s);
  };
@@ -392,6 +416,167 @@ margin-left: 2px !important;
  btn.title = `${desc || name}${live ? ' — LIVE' : ' — offline/unknown'}`;
  };
 
+ let buttonPreviewCard = null;
+ let buttonPreviewTimer = null;
+ let buttonPreviewToken = 0;
+ let buttonPreviewVisibleUrl = '';
+ const buttonPreviewCache = new Map();
+ const buttonPreviewInflight = new Map();
+ const buttonPreviewImages = new Map();
+
+ const preloadPreviewImage = async (url) => {
+ if (!url) return null;
+ if (buttonPreviewImages.has(url)) return buttonPreviewImages.get(url);
+ const image = new Image();
+ image.decoding = 'async'; image.fetchPriority = 'low'; image.referrerPolicy = 'no-referrer';
+ const promise = new Promise(resolve => {
+ image.onload = async () => { try { await image.decode?.(); } catch {} resolve(image); };
+ image.onerror = () => resolve(null);
+ });
+ image.src = url;
+ buttonPreviewImages.set(url, promise);
+ return promise;
+ };
+
+ const getButtonPreview = async (name, url) => {
+ const cached = buttonPreviewCache.get(url);
+ if (cached && Date.now() - cached.at < 60000) return cached.data;
+ if (buttonPreviewInflight.has(url)) return buttonPreviewInflight.get(url);
+ const task = (async () => {
+ let data = { title: name, platform: 'Stream', image: '' };
+ try {
+ if (url.includes('twitch.tv')) {
+ const login = extractTwitchLogin(url);
+ let user = null;
+ if (login) {
+ try {
+ const r = await fetch('https://gql.twitch.tv/gql', {
+ method: 'POST',
+ headers: { 'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
+ body: JSON.stringify({ query: `query { user(login: "${login}") { displayName profileImageURL(width: 320) bannerImageURL stream { type previewImageURL(width: 320, height: 180) } } }` })
+ });
+ user = (await r.json())?.data?.user;
+ } catch {}
+ }
+ const live = user?.stream?.type === 'live';
+ data = {
+ title: user?.displayName || name,
+ platform: 'Twitch', live,
+ image: live
+ ? (user?.stream?.previewImageURL || `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login.toLowerCase()}-320x180.jpg?t=${Date.now()}`)
+ : (user?.bannerImageURL || user?.profileImageURL || '')
+ };
+ } else if (isYouTubeUrl(url)) {
+ const id = extractYouTubeVideoId(url);
+ data = { title: name, platform: 'YouTube', image: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '' };
+ } else if (url.includes('kick.com')) {
+ const slug = extractKickSlug(url);
+ let j = null;
+ try {
+ // Kick often blocks Cloudflare Worker IPs but allows its public API from
+ // browsers. Prefer the direct request and use the Worker only as fallback.
+ const r = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`);
+ if (r.ok) j = await r.json();
+ } catch {}
+ if (j) {
+ const thumb = typeof j?.livestream?.thumbnail === 'string' ? j.livestream.thumbnail : j?.livestream?.thumbnail?.url;
+ data = {
+ title: j?.livestream?.session_title || j?.user?.username || name,
+ platform: 'Kick',
+ image: thumb || j?.banner_image?.url || (!j?.livestream ? (j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic) : '') || '',
+ live: !!j?.livestream
+ };
+ } else {
+ const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
+ const fallback = await r.json();
+ data = { title: fallback.title || name, platform: 'Kick', image: fallback.image || '', live: fallback.live === true };
+ }
+ } else if (url.includes('angelthump.com')) {
+ const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
+ const j = await r.json();
+ data = { title: j.title || name, platform: 'AngelThump', image: j.image || '', live: j.live === true };
+ }
+ } catch {}
+ buttonPreviewCache.set(url, { data, at: Date.now() });
+ if (data.image && data.live !== false) preloadPreviewImage(data.image).catch(() => {});
+ return data;
+ })();
+ buttonPreviewInflight.set(url, task);
+ try { return await task; }
+ finally { buttonPreviewInflight.delete(url); }
+ };
+
+ const warmButtonPreviews = () => {
+ const jobs = channels.filter(([, url]) => url).map(([name, url]) => () => getButtonPreview(name, url));
+ let cursor = 0;
+ const worker = async () => { while (cursor < jobs.length) { const job = jobs[cursor++]; try { await job(); } catch {} } };
+ const start = () => Promise.all([worker(), worker(), worker()]);
+ if ('requestIdleCallback' in window) requestIdleCallback(() => start(), { timeout: 1800 });
+ else setTimeout(start, 500);
+ };
+
+ const hideButtonPreview = () => {
+ clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken;
+ if (!buttonPreviewCard) return;
+ buttonPreviewCard.classList.remove('show');
+ setTimeout(() => { if (token === buttonPreviewToken) buttonPreviewCard.style.display = 'none'; }, 190);
+ };
+
+ const makeStatusBanner = (platform, state = 'offline') => {
+ const banner = document.createElement('div'); banner.className = 'bajsas-offline-banner' + (state === 'live' ? ' is-live' : '');
+ const icon = document.createElement('div'); icon.className = 'bajsas-offline-icon';
+ if (state === 'loading') {
+ icon.textContent = '…';
+ } else {
+ const emote = document.createElement('img');
+ emote.src = 'https://cdn.7tv.app/emote/01F6NS89X000013ACMMJPDTDNP/4x.webp';
+ emote.alt = state === 'live' ? 'Live' : 'Offline';
+ emote.decoding = 'async';
+ icon.appendChild(emote);
+ }
+ const label = document.createElement('div'); label.className = 'bajsas-offline-label';
+ label.textContent = state === 'loading' ? 'Loading Preview' : state === 'live' ? 'Live • Preview Unavailable' : 'Channel Offline';
+ const source = document.createElement('div'); source.className = 'bajsas-offline-platform'; source.textContent = platform || 'Stream';
+ banner.append(icon, label, source); return banner;
+ };
+
+ const renderButtonPreview = (name, data) => {
+ buttonPreviewCard.replaceChildren();
+ // Use one consistent generated design for every confirmed offline channel,
+ // even when the platform supplies its own offline banner.
+ if (data.live === false) {
+ buttonPreviewCard.appendChild(makeStatusBanner(data.platform, data.live === true ? 'live' : 'offline'));
+ } else if (data.image) {
+ const img = document.createElement('img'); img.src = data.image; img.alt = ''; img.decoding = 'async'; img.fetchPriority = 'high'; img.referrerPolicy = 'no-referrer';
+ img.onerror = () => img.replaceWith(makeStatusBanner(data.platform, data.live === true ? 'live' : 'offline')); buttonPreviewCard.appendChild(img);
+ } else {
+ buttonPreviewCard.appendChild(makeStatusBanner(data.platform, data.loading === true ? 'loading' : data.live === true ? 'live' : 'offline'));
+ }
+ const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = data.title || name;
+ const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta';
+ const state = data.live === true ? ' • LIVE' : data.live === false ? ' • OFFLINE' : '';
+ meta.textContent = data.platform + state;
+ buttonPreviewCard.append(title, meta);
+ };
+
+ const showButtonPreview = (btn, name, url) => {
+ clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken; const rect = btn.getBoundingClientRect();
+ buttonPreviewTimer = setTimeout(async () => {
+ if (!buttonPreviewCard) { buttonPreviewCard = document.createElement('div'); buttonPreviewCard.className = 'bajsas-stream-preview'; document.body.appendChild(buttonPreviewCard); }
+ const cached = buttonPreviewCache.get(url)?.data;
+ renderButtonPreview(name, cached || { title: name, platform: 'Stream', image: '', loading: true });
+ buttonPreviewVisibleUrl = url;
+ buttonPreviewCard.style.display = 'block';
+ buttonPreviewCard.style.left = Math.max(8, Math.min(innerWidth - 300, rect.left)) + 'px';
+ buttonPreviewCard.style.top = Math.max(8, rect.top > 215 ? rect.top - 205 : rect.bottom + 8) + 'px';
+ requestAnimationFrame(() => requestAnimationFrame(() => { if (token === buttonPreviewToken) buttonPreviewCard.classList.add('show'); }));
+ const data = cached || await getButtonPreview(name, url);
+ if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
+ if (data.image && data.live !== false) await Promise.race([preloadPreviewImage(data.image), new Promise(resolve => setTimeout(resolve, 250))]);
+ if (token === buttonPreviewToken) renderButtonPreview(name, data);
+ }, 60);
+ };
+
  const createBtn = (text, src, desc, isNative = false, emoteUrl = '') => {
  const btn = document.createElement('button');
  btn.className = 'custom-stream-btn';
@@ -451,11 +636,13 @@ margin-left: 2px !important;
  }
  }
 
- localStorage.setItem(LS_STREAM, text);
- setActive(btn);
+     // Do not persist the selected stream across app/page starts.
+     setActive(btn);
  };
 
  if (!isNative && src) {
+ btn.addEventListener('mouseenter', () => showButtonPreview(btn, text, src));
+ btn.addEventListener('mouseleave', hideButtonPreview);
  updateBtnLiveUI(btn, src, desc, text);
  }
 
@@ -594,6 +781,10 @@ margin-left: 2px !important;
  wrapper.appendChild(box);
  targetContainer.appendChild(wrapper);
 
+ // Warm metadata and decode thumbnails during idle time so hover performs no
+ // network or image-decoding work on the interaction frame.
+ warmButtonPreviews();
+
  // ═══════════════════════════════════════════════════════════════════
  // BajSAS Chat Watch Badges — lightweight
  // Badges show the watched channel and switch the existing overlay.
@@ -713,7 +904,8 @@ margin-left: 2px !important;
      function bConnectWS() {
          try {
              if (bws && bws.readyState <= 1) return;
-             bws = new WebSocket(WS_URL);
+             const identityUrl = WS_URL + '&id=' + encodeURIComponent(bid) + '&twitchUser=' + encodeURIComponent(bGetUser());
+             bws = new WebSocket(identityUrl);
              bws.onmessage = (e) => {
                  try {
  const m = JSON.parse(e.data);
