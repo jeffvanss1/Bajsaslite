@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 4.5';
+ const APP_VERSION = 'lite 4.7';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -927,7 +927,9 @@ margin-left: 2px !important;
  chatBox.querySelectorAll('[data-baj-snapshot-channel][data-baj-processed]').forEach(msg => {
  if (msg.querySelector('.bajsas-watch-badge')) return;
  msg.removeAttribute('data-baj-processed');
- bQueueProcess(msg, 0);
+ // Snapshot is already known: restore synchronously inside the mutation
+ // microtask so Firefox cannot paint a frame without the badge.
+ bProcess(msg);
  });
  bScan(chatBox);
  }
@@ -1091,22 +1093,26 @@ margin-left: 2px !important;
      }
 
      const MESSAGE_SELECTOR = '[data-a-target="chat-line-message"], .seventv-user-message, .seventv-ban-slider';
+     const bCanonicalMessage = msg => {
+         if (!msg) return null;
+         if (msg.classList?.contains('seventv-ban-slider')) return msg.querySelector('.seventv-user-message') || msg;
+         // 7TV can nest its message inside Twitch's native line. Always choose
+         // one canonical owner so two observers cannot inject duplicate badges.
+         return msg.querySelector?.('.seventv-user-message') || msg;
+     };
 
      function bScan(root) {
          const messages = [];
-         if (root?.nodeType === 1 && root.matches?.(MESSAGE_SELECTOR)) messages.push(root);
-         if (root?.querySelectorAll) messages.push(...root.querySelectorAll(MESSAGE_SELECTOR));
-         for (const msg of new Set(messages)) {
+         if (root?.nodeType === 1 && root.matches?.(MESSAGE_SELECTOR)) messages.push(bCanonicalMessage(root));
+         if (root?.querySelectorAll) messages.push(...[...root.querySelectorAll(MESSAGE_SELECTOR)].map(bCanonicalMessage));
+         for (const msg of new Set(messages.filter(Boolean))) {
              if (!msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
          }
      }
 
      function bCheckNode(node) {
          if (node.nodeType !== 1) return;
-         // Process complete message containers directly instead of waiting for
-         // a fragile text node containing exactly ':'. This works with native
-         // Twitch, localized markup, 7TV, BTTV, and FFZ DOM variations.
-         const closest = node.closest?.(MESSAGE_SELECTOR);
+         const closest = bCanonicalMessage(node.closest?.(MESSAGE_SELECTOR));
          if (closest && !closest.getAttribute('data-baj-processed')) bQueueProcess(closest);
          bScan(node);
      }
@@ -1326,28 +1332,39 @@ margin-left: 2px !important;
 
      function bCheckNav() {
          const ch = bGetCh();
+         const urlChanged = ch !== bLastCh;
+
+         // A Twitch SPA navigation always means native Twitch. Clear the old
+         // overlay state BEFORE calculating curCh; previously the stale overlay
+         // name could equal bLastProcessedCh and return early, skipping the new
+         // chat observer and watch-state update.
+         if (urlChanged) bActiveStream = '';
          const curCh = bActiveStream || ch;
-         if (curCh === bLastProcessedCh) return;
+         if (!urlChanged && curCh === bLastProcessedCh) return;
+
+         const previousUrlChannel = bLastCh;
          bLastCh = ch;
          bLastProcessedCh = curCh;
-         bActiveStream = ''; // URL changed → native Twitch
-
-         console.log('[BajSAS] Channel changed: → ' + curCh);
+         dbg('navigation:changed', { from: previousUrlChannel, to: ch, watching: curCh, urlChanged });
 
          if (curCh) {
              bApplyLocalWatch(curCh);
              bPing('watch:' + curCh.slice(0,30));
          }
-         bRefreshAll();
 
-         // Do not blindly disconnect chat observation for 1.5–3 seconds.
-         // Overlay switches usually keep the same chat node, while Twitch SPA
-         // navigation may replace it. Rebind immediately only when necessary.
+         // Twitch reconstructs chat during SPA navigation. Invalidate the old
+         // target reference so bStartObs cannot mistake a detached/shell node
+         // for the current chat and scan it repeatedly.
+         if (urlChanged && bObservedChatBox && !bObservedChatBox.isConnected) {
+             bchatObs?.disconnect();
+             bchatObs = null;
+             bObservedChatBox = null;
+         }
          bStartObs();
          requestAnimationFrame(bStartObs);
-         setTimeout(bStartObs, 100);
+         setTimeout(bStartObs, 50);
+         setTimeout(bStartObs, 150);
          setTimeout(bStartObs, 400);
-
      }
 
      function bStartObs() {
@@ -1377,7 +1394,9 @@ margin-left: 2px !important;
                  if (msg && !msg.querySelector('.bajsas-watch-badge')) {
                      dbg('badge:removed-by-dom-rerender', { username: msg.dataset.bajSnapshotUser || '', channel: msg.dataset.bajSnapshotChannel || '' });
                      msg.removeAttribute('data-baj-processed');
-                     bQueueProcess(msg, 0);
+                     // Restore before the browser's next paint. setTimeout(0)
+                     // caused a visible one-frame blink in Firefox.
+                     bProcess(msg);
                  }
              }
          });
