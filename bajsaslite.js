@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 1.9';
+ const APP_VERSION = 'lite 2.0';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -793,7 +793,9 @@ margin-left: 2px !important;
              try {
                  fetch(PING_URL + query, {
                      method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
+                     // text/plain is a CORS-simple request, avoiding the
+                     // OPTIONS preflight that delayed every channel switch.
+                     headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                      body,
                      keepalive: true,
                      mode: 'cors'
@@ -806,8 +808,20 @@ margin-left: 2px !important;
          } catch {}
      }
 
- function bStartPing() {
- // One-shot state update only. Repeating heartbeat pings were removed;
+     function bApplyLocalWatch(channel) {
+         const me = bGetUser();
+         if (!me || !channel) return;
+         const now = Date.now();
+         const pendingOffline = bOfflineTimers.get(me);
+         if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(me); }
+         bwm.set(me, { channel, lastSeen: now });
+         // Update this browser immediately instead of waiting for the Worker
+         // round trip. The WebSocket echo remains authoritative for everyone else.
+         bRefreshUser(me);
+     }
+
+     function bStartPing() {
+         // One-shot state update only. Repeating heartbeat pings were removed;
  // navigation, stream selection, and tab visibility still send updates.
  const ch = bCurrentChannel();
  if (ch) {
@@ -1015,8 +1029,10 @@ margin-left: 2px !important;
 
          console.log('[BajSAS] Channel changed: → ' + curCh);
 
-         if (curCh) bPing('watch:' + curCh.slice(0,30));
-         bStartPing();
+         if (curCh) {
+             bApplyLocalWatch(curCh);
+             bPing('watch:' + curCh.slice(0,30));
+         }
          bRefreshAll();
 
          if (bchatObs) { bchatObs.disconnect(); bchatObs = null; }
@@ -1046,13 +1062,16 @@ margin-left: 2px !important;
                      bLastProcessedCh = name;
                      // Sanitize same as old app: keep alphanumeric, dash, underscore, space
                      const safeName = name.slice(0,30).replace(/[^a-zA-Z0-9_\- ]/g,'');
+                     bApplyLocalWatch(safeName);
                      bPing('watch:' + safeName);
                  } else {
                      bActiveStream = '';
                      const ch = bGetCh();
                      bLastProcessedCh = ch;
-                     if (ch) bPing('watch:' + ch.slice(0,30));
-                     else bPing('heartbeat');
+                     if (ch) {
+                         bApplyLocalWatch(ch.slice(0,30));
+                         bPing('watch:' + ch.slice(0,30));
+                     } else bPing('heartbeat');
              }
              // The branch above already sent the new state exactly once.
              bRefreshAll();
