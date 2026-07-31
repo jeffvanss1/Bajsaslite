@@ -9,7 +9,17 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.8';
+ const APP_VERSION = 'lite 4.0';
+ const DEBUG = true;
+ const debugBuffer = [];
+ const dbg = (event, details = {}) => {
+ const entry = { at: new Date().toISOString(), event, ...details };
+ debugBuffer.push(entry);
+ if (debugBuffer.length > 500) debugBuffer.shift();
+ if (DEBUG) console.debug(`[BajSAS ${APP_VERSION}] ${event}`, details);
+ };
+ window.__BAJSAS_DEBUG__ = { version: APP_VERSION, logs: debugBuffer, dump: () => [...debugBuffer] };
+ dbg('app:start', { href: location.href });
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -21,6 +31,7 @@ javascript:(async function(){
  const resp = await fetch(listUrl);
  const text = await resp.text();
  channels = text.trim().split('\n').map(line => line.split(';'));
+ dbg('channels:loaded', { count: channels.length });
  } catch (e) { console.log('[BajSAS Lite] Failed to load channel list:', e); return; }
 
  // Always start on the native Twitch player. Stream selection is session-only;
@@ -507,6 +518,7 @@ margin-left: 2px !important;
  };
 
  const warmButtonPreviews = () => {
+ dbg('preview:warm-start', { channels: channels.length });
  const jobs = channels.filter(([, url]) => url).map(([name, url]) => () => getButtonPreview(name, url));
  let cursor = 0;
  const worker = async () => { while (cursor < jobs.length) { const job = jobs[cursor++]; try { await job(); } catch {} } };
@@ -560,6 +572,7 @@ margin-left: 2px !important;
  };
 
  const showButtonPreview = (btn, name, url) => {
+ dbg('preview:hover', { name, url });
  clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken; const rect = btn.getBoundingClientRect();
  buttonPreviewTimer = setTimeout(async () => {
  if (!buttonPreviewCard) { buttonPreviewCard = document.createElement('div'); buttonPreviewCard.className = 'bajsas-stream-preview'; document.body.appendChild(buttonPreviewCard); }
@@ -884,6 +897,14 @@ margin-left: 2px !important;
  function bRescanChat() {
  const chatBox = document.querySelector('.stream-chat');
  if (!chatBox) return;
+ // Firefox/7TV may rerender a message and remove injected children while
+ // leaving our data attributes on the message container. Restore from the
+ // immutable per-message snapshot, never from the user's newer channel.
+ chatBox.querySelectorAll('[data-baj-snapshot-channel][data-baj-processed]').forEach(msg => {
+ if (msg.querySelector('.bajsas-watch-badge')) return;
+ msg.removeAttribute('data-baj-processed');
+ bQueueProcess(msg, 0);
+ });
  bScan(chatBox);
  }
 
@@ -906,10 +927,13 @@ margin-left: 2px !important;
          try {
              if (bws && bws.readyState <= 1) return;
              const identityUrl = WS_URL + '&id=' + encodeURIComponent(bid) + '&twitchUser=' + encodeURIComponent(bGetUser());
+             dbg('ws:connecting', { url: identityUrl.replace(/key=[^&]+/, 'key=REDACTED') });
              bws = new WebSocket(identityUrl);
+             bws.onopen = () => dbg('ws:open', { id: bid, twitchUser: bGetUser() });
              bws.onmessage = (e) => {
                  try {
  const m = JSON.parse(e.data);
+ dbg('ws:message', { type: m.type, twitchUser: m.twitchUser || '', watching: m.watching || '', id: m.id || '' });
  if (m.type === 'connected' && Array.isArray(m.users)) {
  bApplyUserSnapshot(m.users);
  } else if (m.type === 'force_watch' && m.channel) {
@@ -959,8 +983,8 @@ margin-left: 2px !important;
  }
                  } catch {}
              };
-             bws.onclose = () => { bws = null; if (bwsTimer) clearTimeout(bwsTimer); bwsTimer = setTimeout(bConnectWS, 8000); };
-             bws.onerror = () => { try { bws.close(); } catch {} };
+             bws.onclose = (event) => { dbg('ws:close', { code: event.code, reason: event.reason }); bws = null; if (bwsTimer) clearTimeout(bwsTimer); bwsTimer = setTimeout(bConnectWS, 8000); };
+             bws.onerror = () => { dbg('ws:error'); try { bws.close(); } catch {} };
          } catch {}
      }
 
@@ -979,6 +1003,7 @@ margin-left: 2px !important;
              // called bPing twice. That produced up to six writes for one switch
              // and queued Durable Object storage before the WebSocket update.
              // Use the image transport only when the primary fetch actually fails.
+             dbg('ping:send', { event: ev, twitchUser: tw, id: bid });
              try {
                  fetch(PING_URL + query, {
                      method: 'POST',
@@ -988,10 +1013,12 @@ margin-left: 2px !important;
                      body,
                      keepalive: true,
                      mode: 'cors'
-                 }).catch(() => {
+                 }).then(r => dbg('ping:response', { event: ev, status: r.status })).catch((error) => {
+                     dbg('ping:fallback-image', { event: ev, error: String(error) });
                      try { const img = new Image(); img.src = PING_URL + query; } catch {}
                  });
-             } catch {
+             } catch (error) {
+                 dbg('ping:exception', { event: ev, error: String(error) });
                  try { const img = new Image(); img.src = PING_URL + query; } catch {}
              }
          } catch {}
@@ -1020,14 +1047,15 @@ margin-left: 2px !important;
  }
 
      const bMessageTimers = new WeakMap();
-     function bQueueProcess(msg) {
+     function bQueueProcess(msg, delay = 350) {
          if (!msg || msg.getAttribute('data-baj-processed') || bMessageTimers.has(msg)) return;
-         // Give a channel-switch watch_update a short chance to arrive before
-         // freezing this message's historical badge state.
+         // New messages get a short ordering window; snapshot restoration uses
+         // delay=0 because its original channel is already known.
+         dbg('badge:queue', { delay, snapshot: msg.dataset.bajSnapshotChannel || '', pendingUser: msg.dataset.bajPendingUser || '' });
          const timer = setTimeout(() => {
              bMessageTimers.delete(msg);
              if (msg.isConnected && !msg.getAttribute('data-baj-processed')) bProcess(msg);
-         }, 350);
+         }, delay);
          bMessageTimers.set(msg, timer);
      }
 
@@ -1091,20 +1119,26 @@ margin-left: 2px !important;
          if (msg.getAttribute('data-baj-processed')) return;
          if (msg.classList?.contains('seventv-ban-slider')) { const inner = msg.querySelector('.seventv-user-message'); if (inner) { bProcess(inner); return; } }
          msg.setAttribute('data-baj-processed', '1');
-         const username = bGetName(msg);
+         const username = msg.dataset.bajSnapshotUser || bGetName(msg);
          if (!username) return;
          const watchInfo = bwm.get(username);
-         if (!watchInfo || !watchInfo.channel) {
+         const snapshotChannel = msg.dataset.bajSnapshotChannel || '';
+         if (!snapshotChannel && (!watchInfo || !watchInfo.channel)) {
              // Keep only a short-lived pending marker. A watch_update can fill
              // this message, while old chat history is never rewritten later.
              msg.dataset.bajPendingUser = username;
              msg.dataset.bajPendingAt = String(Date.now());
+             dbg('badge:pending-watch-state', { username });
              return;
          }
          delete msg.dataset.bajPendingUser;
          delete msg.dataset.bajPendingAt;
 
-         const ch = watchInfo.channel;
+         // Once assigned, this value is the immutable state for this message.
+         // It also lets us reconstruct the badge after a Firefox/7TV rerender.
+         const ch = snapshotChannel || watchInfo.channel;
+         msg.dataset.bajSnapshotChannel = ch;
+         msg.dataset.bajSnapshotUser = username;
          // Same as old app: includes() for same-channel check
          const currentTwitchChannel = bGetCh();
          const isSame = currentTwitchChannel && ch.toLowerCase().includes(currentTwitchChannel);
@@ -1161,12 +1195,13 @@ margin-left: 2px !important;
          }
 
          try {
-            if (colonSpan) {
-                colonSpan.parentNode.insertBefore(badge, colonSpan);
-            } else {
-                msg.appendChild(badge);
-            }
-            } catch {}
+             if (colonSpan) {
+                 colonSpan.parentNode.insertBefore(badge, colonSpan);
+             } else {
+                 msg.appendChild(badge);
+             }
+             dbg('badge:displayed', { username, channel: ch, restored: Boolean(snapshotChannel), insertion: colonSpan ? 'before-colon' : 'append' });
+             } catch (error) { dbg('badge:display-error', { username, channel: ch, error: String(error) }); }
      }
 
      // Existing badges are historical snapshots: never rewrite old messages.
@@ -1184,7 +1219,7 @@ margin-left: 2px !important;
  delete msg.dataset.bajPendingAt;
  if (age < 5000) {
  msg.removeAttribute('data-baj-processed');
- bQueueProcess(msg);
+ bQueueProcess(msg, 0);
  }
  });
  }
@@ -1258,8 +1293,22 @@ margin-left: 2px !important;
          }
          bchatObs?.disconnect();
          bObservedChatBox = chatBox;
+         dbg('chat-observer:bound', { className: chatBox.className });
          bchatObs = new MutationObserver((muts) => {
-             for (const m of muts) for (const n of m.addedNodes) bCheckNode(n);
+             for (const m of muts) {
+                 for (const n of m.addedNodes) bCheckNode(n);
+                 // A framework rerender can remove only our badge. Recover the
+                 // same historical snapshot immediately instead of waiting for
+                 // the 15-second safety scan.
+                 const msg = m.target.nodeType === 1
+                     ? (m.target.closest?.('[data-baj-snapshot-channel]') || null)
+                     : null;
+                 if (msg && !msg.querySelector('.bajsas-watch-badge')) {
+                     dbg('badge:removed-by-dom-rerender', { username: msg.dataset.bajSnapshotUser || '', channel: msg.dataset.bajSnapshotChannel || '' });
+                     msg.removeAttribute('data-baj-processed');
+                     bQueueProcess(msg, 0);
+                 }
+             }
          });
          bchatObs.observe(chatBox, { childList: true, subtree: true });
          bScan(chatBox);
