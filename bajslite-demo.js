@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.2';
+ const APP_VERSION = 'lite 3.3';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -144,6 +144,8 @@ margin-left: 2px !important;
  .bajsas-stream-preview img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; border-radius: 6px; background: #18181b; transform: translateZ(0); }
  .bajsas-offline-banner { width:100%; aspect-ratio:16/9; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; border-radius:6px; overflow:hidden; position:relative; background:radial-gradient(circle at 50% 20%,rgba(145,71,255,.28),transparent 48%),linear-gradient(135deg,#19151f,#0e0e12); color:#efeff1; border:1px solid rgba(255,255,255,.08); }
  .bajsas-offline-banner::before { content:""; position:absolute; inset:0; opacity:.16; background:repeating-linear-gradient(135deg,transparent 0 12px,rgba(255,255,255,.08) 12px 13px); }
+ .bajsas-offline-banner.is-live { background:radial-gradient(circle at 50% 20%,rgba(0,200,83,.3),transparent 48%),linear-gradient(135deg,#102019,#0e0e12); }
+ .bajsas-offline-banner.is-live .bajsas-offline-icon { color:#69f0ae; border-color:rgba(105,240,174,.45); background:rgba(0,200,83,.18); }
  .bajsas-offline-icon { z-index:1; width:42px; height:42px; display:grid; place-items:center; border-radius:50%; background:rgba(145,71,255,.2); border:1px solid rgba(191,148,255,.38); font-size:20px; }
  .bajsas-offline-label { z-index:1; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
  .bajsas-offline-platform { z-index:1; color:#adadb8; font-size:10px; }
@@ -477,7 +479,7 @@ margin-left: 2px !important;
  data = {
  title: j?.livestream?.session_title || j?.user?.username || name,
  platform: 'Kick',
- image: thumb || j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic || '',
+ image: thumb || j?.banner_image?.url || (!j?.livestream ? (j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic) : '') || '',
  live: !!j?.livestream
  };
  } else {
@@ -516,10 +518,11 @@ margin-left: 2px !important;
  setTimeout(() => { if (token === buttonPreviewToken) buttonPreviewCard.style.display = 'none'; }, 190);
  };
 
- const makeOfflineBanner = (platform, loading = false) => {
- const banner = document.createElement('div'); banner.className = 'bajsas-offline-banner';
- const icon = document.createElement('div'); icon.className = 'bajsas-offline-icon'; icon.textContent = loading ? '…' : '◼';
- const label = document.createElement('div'); label.className = 'bajsas-offline-label'; label.textContent = loading ? 'Loading Preview' : 'Channel Offline';
+ const makeStatusBanner = (platform, state = 'offline') => {
+ const banner = document.createElement('div'); banner.className = 'bajsas-offline-banner' + (state === 'live' ? ' is-live' : '');
+ const icon = document.createElement('div'); icon.className = 'bajsas-offline-icon'; icon.textContent = state === 'loading' ? '…' : state === 'live' ? '●' : '◼';
+ const label = document.createElement('div'); label.className = 'bajsas-offline-label';
+ label.textContent = state === 'loading' ? 'Loading Preview' : state === 'live' ? 'Live • Preview Unavailable' : 'Channel Offline';
  const source = document.createElement('div'); source.className = 'bajsas-offline-platform'; source.textContent = platform || 'Stream';
  banner.append(icon, label, source); return banner;
  };
@@ -529,12 +532,12 @@ margin-left: 2px !important;
  // Use one consistent generated design for every confirmed offline channel,
  // even when the platform supplies its own offline banner.
  if (data.live === false) {
- buttonPreviewCard.appendChild(makeOfflineBanner(data.platform, false));
+ buttonPreviewCard.appendChild(makeStatusBanner(data.platform, data.live === true ? 'live' : 'offline'));
  } else if (data.image) {
  const img = document.createElement('img'); img.src = data.image; img.alt = ''; img.decoding = 'async'; img.fetchPriority = 'high'; img.referrerPolicy = 'no-referrer';
- img.onerror = () => img.replaceWith(makeOfflineBanner(data.platform, false)); buttonPreviewCard.appendChild(img);
+ img.onerror = () => img.replaceWith(makeStatusBanner(data.platform, data.live === true ? 'live' : 'offline')); buttonPreviewCard.appendChild(img);
  } else {
- buttonPreviewCard.appendChild(makeOfflineBanner(data.platform, data.loading === true));
+ buttonPreviewCard.appendChild(makeStatusBanner(data.platform, data.loading === true ? 'loading' : data.live === true ? 'live' : 'offline'));
  }
  const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = data.title || name;
  const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta';
