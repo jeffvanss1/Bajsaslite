@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 4.4';
+ const APP_VERSION = 'lite 4.5';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -838,7 +838,8 @@ margin-left: 2px !important;
  let bws = null, bwsTimer = null, bchatObs = null, bObservedChatBox = null;
  let bChatRetryTimer = null;
  let bid = '';
-     let bActiveStream = ''; // tracks which overlay stream is active (empty = native Twitch)
+ let bSelfUser = ''; // resolved from Twitch DOM/storage or Worker snapshot
+ let bActiveStream = ''; // tracks which overlay stream is active (empty = native Twitch)
      let bToken = ''; // HMAC token for ping auth — server-issued, time-limited (optional enhancement)
      let bTokenTimer = null; // token refresh timer
 
@@ -873,7 +874,7 @@ margin-left: 2px !important;
          try { const r = localStorage.getItem('twilight.user'); if (r) { const j = JSON.parse(r); if (j?.login) return j.login.toLowerCase(); } } catch {}
          try { const m = document.cookie.match(/twilight-user=([^;]+)/); if (m) { const j = JSON.parse(decodeURIComponent(m[1])); if (j?.login) return j.login.toLowerCase(); } } catch {}
          try { const el = document.querySelector('[data-a-target="user-display-name"],[data-a-target="top-nav-username"]'); if (el) { const t = el.textContent.trim().toLowerCase(); if (/^[a-z0-9_]{3,25}$/.test(t)) return t; } } catch {}
-         return '';
+         return bSelfUser;
      }
      function bGetCh() { try { return new URL(location.href).pathname.split('/').filter(Boolean)[0]?.toLowerCase() || ''; } catch { return ''; } }
 
@@ -935,6 +936,7 @@ margin-left: 2px !important;
          bwm.clear();
          for (const u of (users || [])) {
              const tw = String(u.twitchUser || '').toLowerCase();
+             if (u.id === bid && tw) { bSelfUser = tw; dbg('self:resolved-from-snapshot', { username: tw }); }
              const ch = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
              if (!tw || !ch || Date.now() - (u.lastSeen || 0) >= 86400000) continue;
              const existing = bwm.get(tw);
@@ -978,6 +980,7 @@ margin-left: 2px !important;
  }
  } else if (m.type === 'watch_update' && m.twitchUser) {
  const k = m.twitchUser.toLowerCase();
+ if (m.id === bid) { bSelfUser = k; dbg('self:resolved-from-update', { username: k }); }
  const ch = m.watching || (m.event || '').replace('watch:', '');
  const incomingTime = m.lastSeen || Date.now();
  const current = bwm.get(k);
@@ -1178,6 +1181,17 @@ margin-left: 2px !important;
          }
          delete msg.dataset.bajNameAttempts;
          msg.setAttribute('data-baj-processed', '1');
+         const self = bGetUser();
+         if (self && username === self) {
+             const currentChannel = bCurrentChannel();
+             if (currentChannel) {
+                 const ownState = { channel: currentChannel, lastSeen: Date.now() };
+                 bwm.set(username, ownState);
+                 bLocalWatchCache.set(username, ownState);
+                 bSaveWatchCache();
+                 dbg('badge:self-immediate-state', { username, channel: currentChannel });
+             }
+         }
          const watchInfo = bLookupWatch(username);
          const snapshotChannel = msg.dataset.bajSnapshotChannel || '';
          if (!snapshotChannel && (!watchInfo || !watchInfo.channel)) {
