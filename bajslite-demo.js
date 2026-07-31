@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.3';
+ const APP_VERSION = 'lite 2.4';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -934,7 +934,11 @@ margin-left: 2px !important;
      function bHidePreview() {
          clearTimeout(bPreviewTimer);
          bPreviewToken++;
-         bPreviewCard?.classList.remove('show');
+         if (bPreviewCard) {
+             bPreviewCard.classList.remove('show');
+             bPreviewCard.style.setProperty('display', 'none', 'important');
+             bPreviewCard.style.setProperty('opacity', '0', 'important');
+         }
      }
 
      function bShowPreview(badge) {
@@ -949,7 +953,7 @@ margin-left: 2px !important;
              if (!bPreviewCard) {
                  bPreviewCard = document.createElement('div');
                  bPreviewCard.className = 'bajsas-stream-preview';
-                 document.documentElement.appendChild(bPreviewCard);
+                 (document.body || document.documentElement).appendChild(bPreviewCard);
              }
              // Show a shell immediately; never make visibility depend on a
              // platform API or thumbnail request completing.
@@ -959,7 +963,12 @@ margin-left: 2px !important;
              bPreviewCard.append(loadingTitle, loadingMeta);
              const left = Math.max(8, Math.min(window.innerWidth - 288, rect.left));
              const top = rect.top > 210 ? rect.top - 198 : rect.bottom + 8;
-             bPreviewCard.style.left = left + 'px'; bPreviewCard.style.top = Math.max(8, top) + 'px';
+             bPreviewCard.style.setProperty('left', left + 'px', 'important');
+             bPreviewCard.style.setProperty('top', Math.max(8, top) + 'px', 'important');
+             bPreviewCard.style.setProperty('display', 'block', 'important');
+             bPreviewCard.style.setProperty('opacity', '1', 'important');
+             bPreviewCard.style.setProperty('visibility', 'visible', 'important');
+             bPreviewCard.style.setProperty('pointer-events', 'none', 'important');
              bPreviewCard.classList.add('show');
 
              const data = await bPreviewData(channel);
@@ -1041,6 +1050,10 @@ margin-left: 2px !important;
          };
 
          // Same event handlers as old app — beat 7TV pointer capture
+         // Direct non-bubbling listeners are the primary path. Delegation below
+         // remains a fallback for chat nodes added by extensions.
+         badge.addEventListener('mouseenter', () => bShowPreview(badge));
+         badge.addEventListener('mouseleave', bHidePreview);
          badge.addEventListener('pointerdown', (e) => e.stopPropagation(), true);
          badge.addEventListener('click', (e) => {
              e.stopPropagation();
