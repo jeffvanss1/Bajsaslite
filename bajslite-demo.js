@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.4';
+ const APP_VERSION = 'lite 2.5';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -140,8 +140,19 @@ margin-left: 2px !important;
  }
  .bajsas-stream-preview.show { opacity: 1; transform: translateY(0); }
  .bajsas-stream-preview img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; border-radius: 5px; background: #18181b; }
- .bajsas-stream-preview-title { font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
- .bajsas-stream-preview-meta { color: #adadb8; font-size: 11px; margin-top: 2px; }
+ .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
+ .bajsas-watch-badge { position: relative !important; }
+ .bajsas-inline-preview {
+ display: none !important; position: absolute !important; left: 0 !important;
+ bottom: calc(100% + 7px) !important; z-index: 2147483647 !important;
+ width: 280px !important; padding: 7px !important; border-radius: 8px !important;
+ background: rgba(14,14,18,.98) !important; border: 1px solid rgba(255,255,255,.18) !important;
+ box-shadow: 0 12px 34px rgba(0,0,0,.6) !important; color: #efeff1 !important;
+ pointer-events: none !important; text-align: left !important; white-space: normal !important;
+ }
+ .bajsas-watch-badge:hover > .bajsas-inline-preview { display: block !important; }
+ .bajsas-inline-preview img { width: 100% !important; aspect-ratio: 16/9; object-fit: cover; display: block !important; border-radius: 5px !important; }
  `;
  document.head.appendChild(s);
  };
@@ -1028,6 +1039,33 @@ margin-left: 2px !important;
          badge.textContent = ch.slice(0,20);
          const timeStr = new Date(watchInfo.lastSeen || Date.now()).toLocaleTimeString();
          badge.title = 'Watching ' + ch + ' since ' + timeStr + ' (click to join) \u2022 BajSAS';
+
+         // CSS-only fallback preview. It does not depend on any hover event
+         // handler, Twitch propagation, 7TV node lifecycle, or API response.
+         const inlinePreview = document.createElement('span');
+         inlinePreview.className = 'bajsas-inline-preview';
+         const source = bPreviewSource(ch);
+         let staticImage = '';
+         let staticPlatform = 'Stream';
+         if (source.url.includes('twitch.tv')) {
+             const login = extractTwitchLogin(source.url);
+             staticPlatform = 'Twitch';
+             if (login) staticImage = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login.toLowerCase()}-320x180.jpg`;
+         } else if (isYouTubeUrl(source.url)) {
+             const id = extractYouTubeVideoId(source.url);
+             staticPlatform = 'YouTube';
+             if (id) staticImage = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+         } else if (source.url.includes('kick.com')) staticPlatform = 'Kick';
+         else if (source.url.includes('angelthump.com')) staticPlatform = 'AngelThump';
+         if (staticImage) {
+             const previewImage = document.createElement('img');
+             previewImage.src = staticImage; previewImage.alt = ''; previewImage.referrerPolicy = 'no-referrer';
+             previewImage.onerror = () => previewImage.remove(); inlinePreview.appendChild(previewImage);
+         }
+         const previewTitle = document.createElement('span'); previewTitle.className = 'bajsas-stream-preview-title'; previewTitle.textContent = source.name || ch;
+         const previewMeta = document.createElement('span'); previewMeta.className = 'bajsas-stream-preview-meta'; previewMeta.textContent = staticPlatform + ' • ' + ch;
+         inlinePreview.append(previewTitle, previewMeta);
+         badge.appendChild(inlinePreview);
 
          // Click: try overlay button first, else load in existing overlay iframe
          // Same as old app: _doLoadStream(found.url, found.name, 'overlay')
