@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.6';
+ const APP_VERSION = 'lite 3.7';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -799,8 +799,9 @@ margin-left: 2px !important;
 
  let bwm = new Map(); // username → { channel, lastSeen }
  const bOfflineTimers = new Map(); // username → pending offline timeout
- let bws = null, bwsTimer = null, bchatObs = null;
-     let bid = '';
+ let bws = null, bwsTimer = null, bchatObs = null, bObservedChatBox = null;
+ let bChatRetryTimer = null;
+ let bid = '';
      let bActiveStream = ''; // tracks which overlay stream is active (empty = native Twitch)
      let bToken = ''; // HMAC token for ping auth — server-issued, time-limited (optional enhancement)
      let bTokenTimer = null; // token refresh timer
@@ -1202,16 +1203,33 @@ margin-left: 2px !important;
          }
          bRefreshAll();
 
-         if (bchatObs) { bchatObs.disconnect(); bchatObs = null; }
-         setTimeout(bStartObs, 1500);
-         setTimeout(bStartObs, 3000);
+         // Do not blindly disconnect chat observation for 1.5–3 seconds.
+         // Overlay switches usually keep the same chat node, while Twitch SPA
+         // navigation may replace it. Rebind immediately only when necessary.
+         bStartObs();
+         requestAnimationFrame(bStartObs);
+         setTimeout(bStartObs, 100);
+         setTimeout(bStartObs, 400);
 
      }
 
      function bStartObs() {
          const chatBox = document.querySelector('.stream-chat');
-         if (!chatBox) { setTimeout(bStartObs, 2000); return; }
-         bchatObs = new MutationObserver((muts) => { for (const m of muts) for (const n of m.addedNodes) bCheckNode(n); });
+         if (!chatBox) {
+             clearTimeout(bChatRetryTimer);
+             bChatRetryTimer = setTimeout(bStartObs, 100);
+             return;
+         }
+         clearTimeout(bChatRetryTimer);
+         if (bchatObs && bObservedChatBox === chatBox) {
+             bScan(chatBox);
+             return;
+         }
+         bchatObs?.disconnect();
+         bObservedChatBox = chatBox;
+         bchatObs = new MutationObserver((muts) => {
+             for (const m of muts) for (const n of m.addedNodes) bCheckNode(n);
+         });
          bchatObs.observe(chatBox, { childList: true, subtree: true });
          bScan(chatBox);
      }
