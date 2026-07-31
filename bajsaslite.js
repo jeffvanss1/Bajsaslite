@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 4.0';
+ const APP_VERSION = 'lite 4.1';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -810,7 +810,25 @@ margin-left: 2px !important;
  const PING_URL = BASE_URL + '/ping';
  const TOKEN_URL = BASE_URL + '/token';
 
+ const WATCH_CACHE_KEY = 'bajsas_watch_cache_v1';
+ const WATCH_CACHE_TTL = 10 * 60 * 1000;
  let bwm = new Map(); // username → { channel, lastSeen }
+ try {
+ const cached = JSON.parse(localStorage.getItem(WATCH_CACHE_KEY) || '[]');
+ const now = Date.now();
+ for (const [username, info] of cached) {
+ if (username && info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL) bwm.set(username, info);
+ }
+ dbg('watch-cache:hydrated', { entries: bwm.size });
+ } catch (error) { dbg('watch-cache:error', { error: String(error) }); }
+ const bSaveWatchCache = () => {
+ try {
+ const now = Date.now();
+ const entries = [...bwm].filter(([, info]) => info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL).slice(0, 500);
+ localStorage.setItem(WATCH_CACHE_KEY, JSON.stringify(entries));
+ dbg('watch-cache:saved', { entries: entries.length });
+ } catch (error) { dbg('watch-cache:save-error', { error: String(error) }); }
+ };
  const bOfflineTimers = new Map(); // username → pending offline timeout
  let bws = null, bwsTimer = null, bchatObs = null, bObservedChatBox = null;
  let bChatRetryTimer = null;
@@ -919,6 +937,7 @@ margin-left: 2px !important;
                  bwm.set(tw, { channel: ch, lastSeen: u.lastSeen || Date.now() });
              }
          }
+         bSaveWatchCache();
          bRefreshAll();
          bRescanChat();
      }
@@ -963,6 +982,7 @@ margin-left: 2px !important;
  if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(k); }
  if (ch && (!current || incomingTime >= current.lastSeen)) {
  bwm.set(k, { channel: ch, lastSeen: incomingTime });
+ bSaveWatchCache();
  bRefreshUser(k);
  }
  } else if (m.type === 'user_offline') {
@@ -976,6 +996,7 @@ margin-left: 2px !important;
  const current = bwm.get(k);
  if (!current || current.lastSeen !== snapshotTime) return;
  bwm.delete(k);
+ bSaveWatchCache();
  bRemoveUser(k);
  }, 2000);
  bOfflineTimers.set(k, timer);
@@ -1031,6 +1052,7 @@ margin-left: 2px !important;
          const pendingOffline = bOfflineTimers.get(me);
          if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(me); }
          bwm.set(me, { channel, lastSeen: now });
+         bSaveWatchCache();
          // Update this browser immediately instead of waiting for the Worker
          // round trip. The WebSocket echo remains authoritative for everyone else.
          bRefreshUser(me);
@@ -1047,10 +1069,10 @@ margin-left: 2px !important;
  }
 
      const bMessageTimers = new WeakMap();
-     function bQueueProcess(msg, delay = 350) {
+     function bQueueProcess(msg, delay = 0) {
          if (!msg || msg.getAttribute('data-baj-processed') || bMessageTimers.has(msg)) return;
-         // New messages get a short ordering window; snapshot restoration uses
-         // delay=0 because its original channel is already known.
+         // Render on the native message frame. Local watch-cache hydration means
+         // normal messages no longer wait for a WebSocket round trip.
          dbg('badge:queue', { delay, snapshot: msg.dataset.bajSnapshotChannel || '', pendingUser: msg.dataset.bajPendingUser || '' });
          const timer = setTimeout(() => {
              bMessageTimers.delete(msg);
