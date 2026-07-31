@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.5';
+ const APP_VERSION = 'lite 2.6';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -414,6 +414,55 @@ margin-left: 2px !important;
  btn.title = `${desc || name}${live ? ' — LIVE' : ' — offline/unknown'}`;
  };
 
+ let buttonPreviewCard = null;
+ let buttonPreviewTimer = null;
+ let buttonPreviewToken = 0;
+ const buttonPreviewCache = new Map();
+
+ const getButtonPreview = async (name, url) => {
+ const cached = buttonPreviewCache.get(url);
+ if (cached && Date.now() - cached.at < 60000) return cached.data;
+ let data = { title: name, platform: 'Stream', image: '' };
+ try {
+ if (url.includes('twitch.tv')) {
+ const login = extractTwitchLogin(url);
+ data = { title: name, platform: 'Twitch', image: login ? `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login.toLowerCase()}-320x180.jpg?t=${Date.now()}` : '' };
+ } else if (isYouTubeUrl(url)) {
+ const id = extractYouTubeVideoId(url);
+ data = { title: name, platform: 'YouTube', image: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '' };
+ } else if (url.includes('kick.com') || url.includes('angelthump.com')) {
+ const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
+ const j = await r.json();
+ data = { title: j.title || name, platform: j.platform || 'Stream', image: j.image || '', live: j.live === true };
+ }
+ } catch {}
+ buttonPreviewCache.set(url, { data, at: Date.now() });
+ return data;
+ };
+
+ const hideButtonPreview = () => {
+ clearTimeout(buttonPreviewTimer); buttonPreviewToken++;
+ if (buttonPreviewCard) { buttonPreviewCard.style.display = 'none'; buttonPreviewCard.classList.remove('show'); }
+ };
+
+ const showButtonPreview = (btn, name, url) => {
+ clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken; const rect = btn.getBoundingClientRect();
+ buttonPreviewTimer = setTimeout(async () => {
+ if (!buttonPreviewCard) { buttonPreviewCard = document.createElement('div'); buttonPreviewCard.className = 'bajsas-stream-preview'; document.body.appendChild(buttonPreviewCard); }
+ buttonPreviewCard.innerHTML = `<div class="bajsas-stream-preview-title"></div><div class="bajsas-stream-preview-meta">Loading preview…</div>`;
+ buttonPreviewCard.querySelector('.bajsas-stream-preview-title').textContent = name;
+ buttonPreviewCard.style.display = 'block'; buttonPreviewCard.style.opacity = '1'; buttonPreviewCard.style.visibility = 'visible';
+ buttonPreviewCard.style.left = Math.max(8, Math.min(innerWidth - 288, rect.left)) + 'px';
+ buttonPreviewCard.style.top = Math.max(8, rect.top > 210 ? rect.top - 198 : rect.bottom + 8) + 'px';
+ const data = await getButtonPreview(name, url); if (token !== buttonPreviewToken) return;
+ buttonPreviewCard.innerHTML = '';
+ if (data.image) { const img = document.createElement('img'); img.src = data.image; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.onerror = () => img.remove(); buttonPreviewCard.appendChild(img); }
+ const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = data.title || name;
+ const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta'; meta.textContent = data.platform + (data.live === true ? ' • LIVE' : '');
+ buttonPreviewCard.append(title, meta); buttonPreviewCard.classList.add('show');
+ }, 150);
+ };
+
  const createBtn = (text, src, desc, isNative = false, emoteUrl = '') => {
  const btn = document.createElement('button');
  btn.className = 'custom-stream-btn';
@@ -478,6 +527,8 @@ margin-left: 2px !important;
  };
 
  if (!isNative && src) {
+ btn.addEventListener('mouseenter', () => showButtonPreview(btn, text, src));
+ btn.addEventListener('mouseleave', hideButtonPreview);
  updateBtnLiveUI(btn, src, desc, text);
  }
 
