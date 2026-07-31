@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.9';
+ const APP_VERSION = 'lite 3.0';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -436,7 +436,25 @@ margin-left: 2px !important;
  try {
  if (url.includes('twitch.tv')) {
  const login = extractTwitchLogin(url);
- data = { title: name, platform: 'Twitch', image: login ? `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login.toLowerCase()}-320x180.jpg?t=${Date.now()}` : '' };
+ let user = null;
+ if (login) {
+ try {
+ const r = await fetch('https://gql.twitch.tv/gql', {
+ method: 'POST',
+ headers: { 'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
+ body: JSON.stringify({ query: `query { user(login: "${login}") { displayName profileImageURL(width: 320) bannerImageURL stream { type previewImageURL(width: 320, height: 180) } } }` })
+ });
+ user = (await r.json())?.data?.user;
+ } catch {}
+ }
+ const live = user?.stream?.type === 'live';
+ data = {
+ title: user?.displayName || name,
+ platform: 'Twitch', live,
+ image: live
+ ? (user?.stream?.previewImageURL || `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login.toLowerCase()}-320x180.jpg?t=${Date.now()}`)
+ : (user?.bannerImageURL || user?.profileImageURL || '')
+ };
  } else if (isYouTubeUrl(url)) {
  const id = extractYouTubeVideoId(url);
  data = { title: name, platform: 'YouTube', image: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '' };
@@ -500,7 +518,9 @@ margin-left: 2px !important;
  img.onerror = () => img.remove(); buttonPreviewCard.appendChild(img);
  }
  const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = data.title || name;
- const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta'; meta.textContent = data.platform + (data.live === true ? ' • LIVE' : '');
+ const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta';
+ const state = data.live === true ? ' • LIVE' : data.live === false ? ' • OFFLINE' : '';
+ meta.textContent = data.platform + state;
  buttonPreviewCard.append(title, meta);
  };
 
