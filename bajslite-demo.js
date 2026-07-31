@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.1';
+ const APP_VERSION = 'lite 3.2';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -492,7 +492,7 @@ margin-left: 2px !important;
  }
  } catch {}
  buttonPreviewCache.set(url, { data, at: Date.now() });
- if (data.image) preloadPreviewImage(data.image).catch(() => {});
+ if (data.image && data.live !== false) preloadPreviewImage(data.image).catch(() => {});
  return data;
  })();
  buttonPreviewInflight.set(url, task);
@@ -526,7 +526,11 @@ margin-left: 2px !important;
 
  const renderButtonPreview = (name, data) => {
  buttonPreviewCard.replaceChildren();
- if (data.image) {
+ // Use one consistent generated design for every confirmed offline channel,
+ // even when the platform supplies its own offline banner.
+ if (data.live === false) {
+ buttonPreviewCard.appendChild(makeOfflineBanner(data.platform, false));
+ } else if (data.image) {
  const img = document.createElement('img'); img.src = data.image; img.alt = ''; img.decoding = 'async'; img.fetchPriority = 'high'; img.referrerPolicy = 'no-referrer';
  img.onerror = () => img.replaceWith(makeOfflineBanner(data.platform, false)); buttonPreviewCard.appendChild(img);
  } else {
@@ -552,7 +556,7 @@ margin-left: 2px !important;
  requestAnimationFrame(() => requestAnimationFrame(() => { if (token === buttonPreviewToken) buttonPreviewCard.classList.add('show'); }));
  const data = cached || await getButtonPreview(name, url);
  if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
- if (data.image) await Promise.race([preloadPreviewImage(data.image), new Promise(resolve => setTimeout(resolve, 250))]);
+ if (data.image && data.live !== false) await Promise.race([preloadPreviewImage(data.image), new Promise(resolve => setTimeout(resolve, 250))]);
  if (token === buttonPreviewToken) renderButtonPreview(name, data);
  }, 60);
  };
