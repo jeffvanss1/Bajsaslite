@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.0';
+ const APP_VERSION = 'lite 3.1';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -142,6 +142,11 @@ margin-left: 2px !important;
  }
  .bajsas-stream-preview.show { opacity: 1; visibility: visible; transform: translate3d(0,0,0) scale(1); transition-delay: 0s; }
  .bajsas-stream-preview img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; border-radius: 6px; background: #18181b; transform: translateZ(0); }
+ .bajsas-offline-banner { width:100%; aspect-ratio:16/9; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; border-radius:6px; overflow:hidden; position:relative; background:radial-gradient(circle at 50% 20%,rgba(145,71,255,.28),transparent 48%),linear-gradient(135deg,#19151f,#0e0e12); color:#efeff1; border:1px solid rgba(255,255,255,.08); }
+ .bajsas-offline-banner::before { content:""; position:absolute; inset:0; opacity:.16; background:repeating-linear-gradient(135deg,transparent 0 12px,rgba(255,255,255,.08) 12px 13px); }
+ .bajsas-offline-icon { z-index:1; width:42px; height:42px; display:grid; place-items:center; border-radius:50%; background:rgba(145,71,255,.2); border:1px solid rgba(191,148,255,.38); font-size:20px; }
+ .bajsas-offline-label { z-index:1; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+ .bajsas-offline-platform { z-index:1; color:#adadb8; font-size:10px; }
  .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
  .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
  `;
@@ -511,11 +516,21 @@ margin-left: 2px !important;
  setTimeout(() => { if (token === buttonPreviewToken) buttonPreviewCard.style.display = 'none'; }, 190);
  };
 
+ const makeOfflineBanner = (platform, loading = false) => {
+ const banner = document.createElement('div'); banner.className = 'bajsas-offline-banner';
+ const icon = document.createElement('div'); icon.className = 'bajsas-offline-icon'; icon.textContent = loading ? '…' : '◼';
+ const label = document.createElement('div'); label.className = 'bajsas-offline-label'; label.textContent = loading ? 'Loading Preview' : 'Channel Offline';
+ const source = document.createElement('div'); source.className = 'bajsas-offline-platform'; source.textContent = platform || 'Stream';
+ banner.append(icon, label, source); return banner;
+ };
+
  const renderButtonPreview = (name, data) => {
  buttonPreviewCard.replaceChildren();
  if (data.image) {
  const img = document.createElement('img'); img.src = data.image; img.alt = ''; img.decoding = 'async'; img.fetchPriority = 'high'; img.referrerPolicy = 'no-referrer';
- img.onerror = () => img.remove(); buttonPreviewCard.appendChild(img);
+ img.onerror = () => img.replaceWith(makeOfflineBanner(data.platform, false)); buttonPreviewCard.appendChild(img);
+ } else {
+ buttonPreviewCard.appendChild(makeOfflineBanner(data.platform, data.loading === true));
  }
  const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = data.title || name;
  const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta';
@@ -529,7 +544,7 @@ margin-left: 2px !important;
  buttonPreviewTimer = setTimeout(async () => {
  if (!buttonPreviewCard) { buttonPreviewCard = document.createElement('div'); buttonPreviewCard.className = 'bajsas-stream-preview'; document.body.appendChild(buttonPreviewCard); }
  const cached = buttonPreviewCache.get(url)?.data;
- renderButtonPreview(name, cached || { title: name, platform: 'Loading preview…', image: '' });
+ renderButtonPreview(name, cached || { title: name, platform: 'Stream', image: '', loading: true });
  buttonPreviewVisibleUrl = url;
  buttonPreviewCard.style.display = 'block';
  buttonPreviewCard.style.left = Math.max(8, Math.min(innerWidth - 300, rect.left)) + 'px';
