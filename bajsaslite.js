@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.7';
+ const APP_VERSION = 'lite 3.8';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -1019,6 +1019,18 @@ margin-left: 2px !important;
  } else bPing('heartbeat');
  }
 
+     const bMessageTimers = new WeakMap();
+     function bQueueProcess(msg) {
+         if (!msg || msg.getAttribute('data-baj-processed') || bMessageTimers.has(msg)) return;
+         // Give a channel-switch watch_update a short chance to arrive before
+         // freezing this message's historical badge state.
+         const timer = setTimeout(() => {
+             bMessageTimers.delete(msg);
+             if (msg.isConnected && !msg.getAttribute('data-baj-processed')) bProcess(msg);
+         }, 350);
+         bMessageTimers.set(msg, timer);
+     }
+
      function bScan(root) {
          const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
              acceptNode: (n) => {
@@ -1031,7 +1043,7 @@ margin-left: 2px !important;
          while (w.nextNode()) found.push(w.currentNode);
          for (const cs of found) {
              const msg = cs.closest('[data-a-target="chat-line-message"]') || cs.closest('.seventv-user-message') || cs.closest('.seventv-ban-slider') || cs.parentElement;
-             if (msg && !msg.getAttribute('data-baj-processed')) bProcess(msg);
+             if (msg && !msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
          }
      }
 
@@ -1041,7 +1053,7 @@ margin-left: 2px !important;
              const t = node.textContent;
              if (t === ': ' || t === ':' || t === ':\u00A0') {
                  const msg = node.closest('[data-a-target="chat-line-message"]') || node.closest('.seventv-user-message') || node.closest('.seventv-ban-slider') || node.parentElement;
-                 if (msg && !msg.getAttribute('data-baj-processed')) bProcess(msg);
+                 if (msg && !msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
                  return;
              }
          }
@@ -1049,7 +1061,7 @@ margin-left: 2px !important;
              const t = sp.textContent;
              if ((t === ': ' || t === ':' || t === ':\u00A0') && sp.children.length === 0) {
                  const msg = sp.closest('[data-a-target="chat-line-message"]') || sp.closest('.seventv-user-message') || sp.closest('.seventv-ban-slider') || sp.parentElement;
-                 if (msg && !msg.getAttribute('data-baj-processed')) bProcess(msg);
+                 if (msg && !msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
              }
          }
      }
@@ -1082,7 +1094,15 @@ margin-left: 2px !important;
          const username = bGetName(msg);
          if (!username) return;
          const watchInfo = bwm.get(username);
-         if (!watchInfo || !watchInfo.channel) return;
+         if (!watchInfo || !watchInfo.channel) {
+             // Keep only a short-lived pending marker. A watch_update can fill
+             // this message, while old chat history is never rewritten later.
+             msg.dataset.bajPendingUser = username;
+             msg.dataset.bajPendingAt = String(Date.now());
+             return;
+         }
+         delete msg.dataset.bajPendingUser;
+         delete msg.dataset.bajPendingAt;
 
          const ch = watchInfo.channel;
          // Same as old app: includes() for same-channel check
@@ -1154,8 +1174,19 @@ margin-left: 2px !important;
  function bRefreshUser(username) {
  const watchInfo = bwm.get(username);
  if (!watchInfo?.channel) return;
- // Updating bwm is enough. MutationObserver will apply this state only to
- // messages inserted from this point onward.
+ // Recover only messages that arrived during the current network race window.
+ // Existing badges and older history remain immutable.
+ const now = Date.now();
+ document.querySelectorAll('[data-baj-pending-user]').forEach(msg => {
+ if (msg.dataset.bajPendingUser !== username) return;
+ const age = now - Number(msg.dataset.bajPendingAt || 0);
+ delete msg.dataset.bajPendingUser;
+ delete msg.dataset.bajPendingAt;
+ if (age < 5000) {
+ msg.removeAttribute('data-baj-processed');
+ bQueueProcess(msg);
+ }
+ });
  }
 
      // When user goes offline, dim their badges but don't remove —
