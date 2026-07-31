@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 2.2';
+ const APP_VERSION = 'lite 2.3';
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -940,32 +940,53 @@ margin-left: 2px !important;
      function bShowPreview(badge) {
          clearTimeout(bPreviewTimer);
          const token = ++bPreviewToken;
+         // Capture position now. 7TV may recycle or replace the chat node while
+         // preview metadata is loading.
+         const rect = badge.getBoundingClientRect();
+         const channel = badge.dataset.bajChannel || badge.textContent.trim();
          bPreviewTimer = setTimeout(async () => {
-             const channel = badge.dataset.bajChannel || '';
-             const data = await bPreviewData(channel);
-             if (token !== bPreviewToken || !badge.isConnected) return;
+             if (token !== bPreviewToken) return;
              if (!bPreviewCard) {
                  bPreviewCard = document.createElement('div');
                  bPreviewCard.className = 'bajsas-stream-preview';
-                 document.body.appendChild(bPreviewCard);
+                 document.documentElement.appendChild(bPreviewCard);
              }
-             const safeTitle = document.createElement('div');
-             safeTitle.textContent = data.title || channel;
-             bPreviewCard.replaceChildren();
+             // Show a shell immediately; never make visibility depend on a
+             // platform API or thumbnail request completing.
+             bPreviewCard.innerHTML = '';
+             const loadingTitle = document.createElement('div'); loadingTitle.className = 'bajsas-stream-preview-title'; loadingTitle.textContent = channel;
+             const loadingMeta = document.createElement('div'); loadingMeta.className = 'bajsas-stream-preview-meta'; loadingMeta.textContent = 'Loading preview…';
+             bPreviewCard.append(loadingTitle, loadingMeta);
+             const left = Math.max(8, Math.min(window.innerWidth - 288, rect.left));
+             const top = rect.top > 210 ? rect.top - 198 : rect.bottom + 8;
+             bPreviewCard.style.left = left + 'px'; bPreviewCard.style.top = Math.max(8, top) + 'px';
+             bPreviewCard.classList.add('show');
+
+             const data = await bPreviewData(channel);
+             if (token !== bPreviewToken) return;
+             bPreviewCard.innerHTML = '';
              if (data.image) {
                  const image = document.createElement('img'); image.src = data.image; image.alt = ''; image.referrerPolicy = 'no-referrer';
                  image.onerror = () => image.remove(); bPreviewCard.appendChild(image);
              }
-             const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = safeTitle.textContent;
+             const title = document.createElement('div'); title.className = 'bajsas-stream-preview-title'; title.textContent = data.title || channel;
              const meta = document.createElement('div'); meta.className = 'bajsas-stream-preview-meta'; meta.textContent = `${data.platform} • ${channel}`;
              bPreviewCard.append(title, meta);
-             const r = badge.getBoundingClientRect();
-             const left = Math.max(8, Math.min(innerWidth - 288, r.left));
-             const top = r.top > 210 ? r.top - 198 : r.bottom + 8;
-             bPreviewCard.style.left = left + 'px'; bPreviewCard.style.top = Math.max(8, top) + 'px';
-             requestAnimationFrame(() => bPreviewCard.classList.add('show'));
-         }, 250);
+         }, 150);
      }
+
+     // Capture-phase delegation survives 7TV replacing/recycling chat nodes and
+     // prevents extension event handlers from blocking preview hover detection.
+     document.addEventListener('mouseover', (event) => {
+         const badge = event.target.closest?.('.bajsas-watch-badge');
+         if (badge) bShowPreview(badge);
+     }, true);
+     document.addEventListener('mouseout', (event) => {
+         const badge = event.target.closest?.('.bajsas-watch-badge');
+         if (!badge) return;
+         if (event.relatedTarget && badge.contains(event.relatedTarget)) return;
+         bHidePreview();
+     }, true);
 
      // Same as old app processMessage — badge shows raw watching value,
      // click tries overlay first, falls back to new tab
@@ -1020,8 +1041,6 @@ margin-left: 2px !important;
          };
 
          // Same event handlers as old app — beat 7TV pointer capture
-         badge.addEventListener('pointerenter', () => bShowPreview(badge));
-         badge.addEventListener('pointerleave', bHidePreview);
          badge.addEventListener('pointerdown', (e) => e.stopPropagation(), true);
          badge.addEventListener('click', (e) => {
              e.stopPropagation();
