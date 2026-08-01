@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.2-player-mount-fix';
+ const APP_VERSION = 'lite 6.13-control-isolation-fix';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -650,6 +650,7 @@ margin-left: 2px !important;
  const createBtn = (text, src, desc, isNative = false, emoteUrl = '') => {
  const btn = document.createElement('button');
  btn.className = 'custom-stream-btn';
+ btn.dataset.streamSelector = '1';
  btn.title = desc || '';
 
  const dot = document.createElement('span');
@@ -1049,7 +1050,7 @@ margin-left: 2px !important;
  if (!applies) return;
  const channel = String(m.channel).trim();
  const native = channel.toLowerCase() === 'twitch'
- ? [...document.querySelectorAll('.custom-stream-btn')].find(btn => !btn.dataset.streamUrl)
+ ? [...btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]')].find(btn => !btn.dataset.streamUrl)
  : null;
  const found = native || bFindOverlayBtn(channel);
  if (found) {
@@ -1537,7 +1538,7 @@ margin-left: 2px !important;
 
      // Hook into stream selector buttons — same as old app handleNavigation
      function bHookButtons() {
-         document.querySelectorAll('.custom-stream-btn').forEach(btn => {
+         btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]').forEach(btn => {
              btn.addEventListener('click', () => {
                  if (btn.dataset.streamUrl) {
                      // Use the button display name (first field before ; in channel list)
