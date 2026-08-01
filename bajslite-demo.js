@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.1';
+ const APP_VERSION = 'lite 3.2-player-mount-fix';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -370,7 +370,13 @@ margin-left: 2px !important;
  }
  };
 
- const targetContainer = v.closest('div') || v.parentElement;
+ const findStablePlayerContainer = () => {
+ const video = document.querySelector('video');
+ return video?.closest('[data-a-target="video-player"], [data-test-selector="video-player__video-container"], .video-player, .persistent-player')
+ || video?.parentElement?.parentElement
+ || video?.parentElement;
+ };
+ let targetContainer = findStablePlayerContainer();
  targetContainer.style.position = 'relative';
  targetContainer.classList.add('stream-container-mod');
 
@@ -390,9 +396,15 @@ margin-left: 2px !important;
  clearTimeout(streamUiIdleTimer);
  targetContainer.classList.remove('stream-ui-active');
  };
- targetContainer.addEventListener('pointermove', setStreamUiActive, { passive: true });
- targetContainer.addEventListener('pointerdown', setStreamUiActive, { passive: true });
- targetContainer.addEventListener('pointerleave', setStreamUiIdle, { passive: true });
+ const boundPlayerContainers = new WeakSet();
+ const bindPlayerContainer = container => {
+ if (!container || boundPlayerContainers.has(container)) return;
+ boundPlayerContainers.add(container);
+ container.addEventListener('pointermove', setStreamUiActive, { passive: true });
+ container.addEventListener('pointerdown', setStreamUiActive, { passive: true });
+ container.addEventListener('pointerleave', setStreamUiIdle, { passive: true });
+ };
+ bindPlayerContainer(targetContainer);
  window.addEventListener('blur', setStreamUiIdle);
  document.addEventListener('visibilitychange', () => {
  if (document.hidden) setStreamUiIdle();
@@ -672,17 +684,19 @@ margin-left: 2px !important;
  nameEl.style.cssText = 'visibility:visible!important;opacity:1!important;font-size:12px!important;font-weight:bold!important;color:#fff!important;white-space:nowrap!important;overflow:visible!important;display:block!important;';
  btn.appendChild(nameEl);
 
- btn.onclick = () => {
- if (isNative) {
+     btn.onclick = (event) => {
+         if (isNative) {
+             dbg('player:native-selected', { source: event?.isTrusted ? 'user' : 'script' });
  v.muted = false;
  try { v.play(); } catch {}
  i.src = '';
  i.style.display = 'none';
  removeForsenChat();
- } else {
- v.muted = true;
+         } else {
+             dbg('player:overlay-selected', { name: text, url: src, source: event?.isTrusted ? 'user' : 'script' });
+             v.muted = true;
 
- i.src = formatUrl(src);
+             i.src = formatUrl(src);
  i.style.display = 'block';
 
  if (text.toLowerCase() === 'forsen') {
@@ -838,6 +852,23 @@ margin-left: 2px !important;
 
  wrapper.appendChild(box);
  targetContainer.appendChild(wrapper);
+
+ // Twitch replaces player DOM during ads, quality changes, and SPA navigation.
+ // Keep the existing iframe alive and move it to the new stable player host
+ // instead of exposing the native player and appearing to switch streams.
+ const playerMountWatchdog = setInterval(() => {
+ if (wrapper.isConnected && targetContainer.isConnected) return;
+ const nextContainer = findStablePlayerContainer();
+ if (!nextContainer) return;
+ const previous = targetContainer;
+ targetContainer = nextContainer;
+ targetContainer.style.position = 'relative';
+ targetContainer.classList.add('stream-container-mod');
+ if (hideUntilHover) targetContainer.classList.add('stream-hide-ui');
+ bindPlayerContainer(targetContainer);
+ targetContainer.appendChild(wrapper);
+ dbg('player:wrapper-reattached', { previousConnected: previous?.isConnected || false });
+ }, 250);
 
  // Warm metadata and decode thumbnails during idle time so hover performs no
  // network or image-decoding work on the interaction frame.
