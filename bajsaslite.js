@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 4.7';
+ const APP_VERSION = 'lite 4.9';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -171,6 +171,28 @@ margin-left: 2px !important;
  };
 
  injectLiveDotStyle();
+
+ // Warm network handshakes without starting hidden video players. Preloading
+ // every iframe wastes bandwidth and can trigger ads/autoplay limits; preconnect
+ // gives most of the startup benefit with no stream downloads.
+ const playerOrigins = [
+ 'https://player.twitch.tv',
+ 'https://player.kick.com',
+ 'https://player.angelthump.com',
+ 'https://www.youtube-nocookie.com',
+ 'https://static-cdn.jtvnw.net',
+ 'https://files.kick.com',
+ 'https://thumbnail.angelthump.com',
+ 'https://i.ytimg.com'
+ ];
+ for (const origin of playerOrigins) {
+ if (document.head.querySelector(`link[data-bajsas-preconnect="${origin}"]`)) continue;
+ const link = document.createElement('link');
+ link.rel = 'preconnect'; link.href = origin; link.crossOrigin = 'anonymous';
+ link.dataset.bajsasPreconnect = origin;
+ document.head.appendChild(link);
+ }
+ dbg('network:preconnect', { origins: playerOrigins.length });
 
  const extractTwitchLogin = (url) => {
  try {
@@ -431,6 +453,7 @@ margin-left: 2px !important;
  let buttonPreviewTimer = null;
  let buttonPreviewToken = 0;
  let buttonPreviewVisibleUrl = '';
+ let buttonPreviewRefreshTimer = null;
  const buttonPreviewCache = new Map();
  const buttonPreviewInflight = new Map();
  const buttonPreviewImages = new Map();
@@ -449,9 +472,16 @@ margin-left: 2px !important;
  return promise;
  };
 
+ const withPreviewCacheBust = imageUrl => {
+ if (!imageUrl) return '';
+ try { const u = new URL(imageUrl); u.searchParams.set('_bajts', String(Date.now())); return u.toString(); }
+ catch { return imageUrl; }
+ };
+
  const getButtonPreview = async (name, url) => {
  const cached = buttonPreviewCache.get(url);
- if (cached && Date.now() - cached.at < 60000) return cached.data;
+ const cacheTtl = url.includes('kick.com') ? 10000 : 60000;
+ if (cached && Date.now() - cached.at < cacheTtl) return cached.data;
  if (buttonPreviewInflight.has(url)) return buttonPreviewInflight.get(url);
  const task = (async () => {
  let data = { title: name, platform: 'Stream', image: '' };
@@ -494,13 +524,13 @@ margin-left: 2px !important;
  data = {
  title: j?.livestream?.session_title || j?.user?.username || name,
  platform: 'Kick',
- image: thumb || j?.banner_image?.url || (!j?.livestream ? (j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic) : '') || '',
+ image: withPreviewCacheBust(thumb || j?.banner_image?.url || (!j?.livestream ? (j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic) : '') || ''),
  live: !!j?.livestream
  };
  } else {
  const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
  const fallback = await r.json();
- data = { title: fallback.title || name, platform: 'Kick', image: fallback.image || '', live: fallback.live === true };
+ data = { title: fallback.title || name, platform: 'Kick', image: withPreviewCacheBust(fallback.image || ''), live: fallback.live === true };
  }
  } else if (url.includes('angelthump.com')) {
  const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
@@ -528,7 +558,7 @@ margin-left: 2px !important;
  };
 
  const hideButtonPreview = () => {
- clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken;
+ clearTimeout(buttonPreviewTimer); clearTimeout(buttonPreviewRefreshTimer); const token = ++buttonPreviewToken;
  if (!buttonPreviewCard) return;
  buttonPreviewCard.classList.remove('show');
  setTimeout(() => { if (token === buttonPreviewToken) buttonPreviewCard.style.display = 'none'; }, 190);
@@ -587,6 +617,20 @@ margin-left: 2px !important;
  if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
  if (data.image && data.live !== false) await Promise.race([preloadPreviewImage(data.image), new Promise(resolve => setTimeout(resolve, 250))]);
  if (token === buttonPreviewToken) renderButtonPreview(name, data);
+ // Kick commonly reuses the same thumbnail URL while replacing the image.
+ // Refresh an open preview every 10 seconds and cache-bust the image request.
+ if (url.includes('kick.com') && token === buttonPreviewToken) {
+ const refresh = async () => {
+ if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
+ buttonPreviewCache.delete(url);
+ const fresh = await getButtonPreview(name, url);
+ if (token !== buttonPreviewToken) return;
+ if (fresh.image) await Promise.race([preloadPreviewImage(fresh.image), new Promise(resolve => setTimeout(resolve, 250))]);
+ if (token === buttonPreviewToken) renderButtonPreview(name, fresh);
+ buttonPreviewRefreshTimer = setTimeout(refresh, 10000);
+ };
+ buttonPreviewRefreshTimer = setTimeout(refresh, 10000);
+ }
  }, 60);
  };
 
