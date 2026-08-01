@@ -9,7 +9,17 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 3.5';
+ const APP_VERSION = 'lite 5.0-game-demo';
+ const DEBUG = true;
+ const debugBuffer = [];
+ const dbg = (event, details = {}) => {
+ const entry = { at: new Date().toISOString(), event, ...details };
+ debugBuffer.push(entry);
+ if (debugBuffer.length > 500) debugBuffer.shift();
+ if (DEBUG) console.debug(`[BajSAS ${APP_VERSION}] ${event}`, details);
+ };
+ window.__BAJSAS_DEBUG__ = { version: APP_VERSION, logs: debugBuffer, dump: () => [...debugBuffer] };
+ dbg('app:start', { href: location.href });
 
  const LS_STREAM = "customStream_selected";
  const LS_HIDE = "customStream_hideUntilHover";
@@ -21,6 +31,7 @@ javascript:(async function(){
  const resp = await fetch(listUrl);
  const text = await resp.text();
  channels = text.trim().split('\n').map(line => line.split(';'));
+ dbg('channels:loaded', { count: channels.length });
  } catch (e) { console.log('[BajSAS Lite] Failed to load channel list:', e); return; }
 
  // Always start on the native Twitch player. Stream selection is session-only;
@@ -155,11 +166,34 @@ margin-left: 2px !important;
  .bajsas-offline-platform { z-index:1; color:#adadb8; font-size:10px; }
  .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
  .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
+ .bajsas-game-modal{display:none;position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.72);place-items:center;pointer-events:auto}.bajsas-game-modal.show{display:grid}.bajsas-game-window{width:min(94vw,560px);background:#18181b;color:#efeff1;border:1px solid #3f3f46;border-radius:12px;padding:14px;box-shadow:0 24px 70px #000}.bajsas-game-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.bajsas-game-board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border:3px solid #3f2a20}.bajsas-game-cell{display:grid;place-items:center;border:0;padding:0}.bajsas-game-cell.light{background:#d7c3a3}.bajsas-game-cell.dark{background:#704c36}.bajsas-piece{width:72%;height:72%;border-radius:50%;box-shadow:inset 0 0 0 3px rgba(255,255,255,.18),0 3px 5px #000}.bajsas-piece.red{background:#d32f2f}.bajsas-piece.black{background:#191919}.bajsas-piece.king:after{content:'★';display:grid;place-items:center;height:100%;color:#ffd54f;font-size:20px}.bajsas-game-cell.selected{outline:4px solid #00e676;outline-offset:-4px}.bajsas-game-controls{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}.bajsas-game-controls select{flex:1;min-width:160px;background:#0e0e10;color:#fff;border:1px solid #555;padding:7px}
  `;
  document.head.appendChild(s);
  };
 
  injectLiveDotStyle();
+
+ // Warm network handshakes without starting hidden video players. Preloading
+ // every iframe wastes bandwidth and can trigger ads/autoplay limits; preconnect
+ // gives most of the startup benefit with no stream downloads.
+ const playerOrigins = [
+ 'https://player.twitch.tv',
+ 'https://player.kick.com',
+ 'https://player.angelthump.com',
+ 'https://www.youtube-nocookie.com',
+ 'https://static-cdn.jtvnw.net',
+ 'https://files.kick.com',
+ 'https://thumbnail.angelthump.com',
+ 'https://i.ytimg.com'
+ ];
+ for (const origin of playerOrigins) {
+ if (document.head.querySelector(`link[data-bajsas-preconnect="${origin}"]`)) continue;
+ const link = document.createElement('link');
+ link.rel = 'preconnect'; link.href = origin; link.crossOrigin = 'anonymous';
+ link.dataset.bajsasPreconnect = origin;
+ document.head.appendChild(link);
+ }
+ dbg('network:preconnect', { origins: playerOrigins.length });
 
  const extractTwitchLogin = (url) => {
  try {
@@ -420,6 +454,7 @@ margin-left: 2px !important;
  let buttonPreviewTimer = null;
  let buttonPreviewToken = 0;
  let buttonPreviewVisibleUrl = '';
+ let buttonPreviewRefreshTimer = null;
  const buttonPreviewCache = new Map();
  const buttonPreviewInflight = new Map();
  const buttonPreviewImages = new Map();
@@ -438,9 +473,16 @@ margin-left: 2px !important;
  return promise;
  };
 
+ const withPreviewCacheBust = imageUrl => {
+ if (!imageUrl) return '';
+ try { const u = new URL(imageUrl); u.searchParams.set('_bajts', String(Date.now())); return u.toString(); }
+ catch { return imageUrl; }
+ };
+
  const getButtonPreview = async (name, url) => {
  const cached = buttonPreviewCache.get(url);
- if (cached && Date.now() - cached.at < 60000) return cached.data;
+ const cacheTtl = url.includes('kick.com') ? 10000 : 60000;
+ if (cached && Date.now() - cached.at < cacheTtl) return cached.data;
  if (buttonPreviewInflight.has(url)) return buttonPreviewInflight.get(url);
  const task = (async () => {
  let data = { title: name, platform: 'Stream', image: '' };
@@ -483,13 +525,13 @@ margin-left: 2px !important;
  data = {
  title: j?.livestream?.session_title || j?.user?.username || name,
  platform: 'Kick',
- image: thumb || j?.banner_image?.url || (!j?.livestream ? (j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic) : '') || '',
+ image: withPreviewCacheBust(thumb || j?.banner_image?.url || (!j?.livestream ? (j?.offline_banner_image?.src || j?.offline_banner_image?.url || j?.user?.profile_pic) : '') || ''),
  live: !!j?.livestream
  };
  } else {
  const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
  const fallback = await r.json();
- data = { title: fallback.title || name, platform: 'Kick', image: fallback.image || '', live: fallback.live === true };
+ data = { title: fallback.title || name, platform: 'Kick', image: withPreviewCacheBust(fallback.image || ''), live: fallback.live === true };
  }
  } else if (url.includes('angelthump.com')) {
  const r = await fetch(`${WORKER_BASE_URL}/stream-preview?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
@@ -507,6 +549,7 @@ margin-left: 2px !important;
  };
 
  const warmButtonPreviews = () => {
+ dbg('preview:warm-start', { channels: channels.length });
  const jobs = channels.filter(([, url]) => url).map(([name, url]) => () => getButtonPreview(name, url));
  let cursor = 0;
  const worker = async () => { while (cursor < jobs.length) { const job = jobs[cursor++]; try { await job(); } catch {} } };
@@ -516,7 +559,7 @@ margin-left: 2px !important;
  };
 
  const hideButtonPreview = () => {
- clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken;
+ clearTimeout(buttonPreviewTimer); clearTimeout(buttonPreviewRefreshTimer); const token = ++buttonPreviewToken;
  if (!buttonPreviewCard) return;
  buttonPreviewCard.classList.remove('show');
  setTimeout(() => { if (token === buttonPreviewToken) buttonPreviewCard.style.display = 'none'; }, 190);
@@ -560,6 +603,7 @@ margin-left: 2px !important;
  };
 
  const showButtonPreview = (btn, name, url) => {
+ dbg('preview:hover', { name, url });
  clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken; const rect = btn.getBoundingClientRect();
  buttonPreviewTimer = setTimeout(async () => {
  if (!buttonPreviewCard) { buttonPreviewCard = document.createElement('div'); buttonPreviewCard.className = 'bajsas-stream-preview'; document.body.appendChild(buttonPreviewCard); }
@@ -574,6 +618,20 @@ margin-left: 2px !important;
  if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
  if (data.image && data.live !== false) await Promise.race([preloadPreviewImage(data.image), new Promise(resolve => setTimeout(resolve, 250))]);
  if (token === buttonPreviewToken) renderButtonPreview(name, data);
+ // Kick commonly reuses the same thumbnail URL while replacing the image.
+ // Refresh an open preview every 10 seconds and cache-bust the image request.
+ if (url.includes('kick.com') && token === buttonPreviewToken) {
+ const refresh = async () => {
+ if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
+ buttonPreviewCache.delete(url);
+ const fresh = await getButtonPreview(name, url);
+ if (token !== buttonPreviewToken) return;
+ if (fresh.image) await Promise.race([preloadPreviewImage(fresh.image), new Promise(resolve => setTimeout(resolve, 250))]);
+ if (token === buttonPreviewToken) renderButtonPreview(name, fresh);
+ buttonPreviewRefreshTimer = setTimeout(refresh, 10000);
+ };
+ buttonPreviewRefreshTimer = setTimeout(refresh, 10000);
+ }
  }, 60);
  };
 
@@ -797,11 +855,36 @@ margin-left: 2px !important;
  const PING_URL = BASE_URL + '/ping';
  const TOKEN_URL = BASE_URL + '/token';
 
- let bwm = new Map(); // username → { channel, lastSeen }
+ const WATCH_CACHE_KEY = 'bajsas_watch_cache_v1';
+ const WATCH_CACHE_TTL = 24 * 60 * 60 * 1000; // bootstrap cache; WebSocket replaces it after connect
+ let bwm = new Map(); // authoritative live map
+ const bLocalWatchCache = new Map(); // fast startup/message fallback
+ try {
+ const cached = JSON.parse(localStorage.getItem(WATCH_CACHE_KEY) || '[]');
+ const now = Date.now();
+ for (const [username, info] of cached) {
+ if (username && info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL) {
+ bLocalWatchCache.set(username, info);
+ bwm.set(username, info);
+ }
+ }
+ dbg('watch-cache:hydrated', { entries: bwm.size });
+ } catch (error) { dbg('watch-cache:error', { error: String(error) }); }
+ const bSaveWatchCache = () => {
+ try {
+ const now = Date.now();
+ for (const [username, info] of bwm) if (info?.channel) bLocalWatchCache.set(username, info);
+ const entries = [...bLocalWatchCache].filter(([, info]) => info?.channel && now - (info.lastSeen || 0) < WATCH_CACHE_TTL).slice(0, 500);
+ localStorage.setItem(WATCH_CACHE_KEY, JSON.stringify(entries));
+ dbg('watch-cache:saved', { entries: entries.length });
+ } catch (error) { dbg('watch-cache:save-error', { error: String(error) }); }
+ };
  const bOfflineTimers = new Map(); // username → pending offline timeout
- let bws = null, bwsTimer = null, bchatObs = null;
-     let bid = '';
-     let bActiveStream = ''; // tracks which overlay stream is active (empty = native Twitch)
+ let bws = null, bwsTimer = null, bchatObs = null, bObservedChatBox = null;
+ let bChatRetryTimer = null;
+ let bid = '';
+ let bSelfUser = ''; // resolved from Twitch DOM/storage or Worker snapshot
+ let bActiveStream = ''; // tracks which overlay stream is active (empty = native Twitch)
      let bToken = ''; // HMAC token for ping auth — server-issued, time-limited (optional enhancement)
      let bTokenTimer = null; // token refresh timer
 
@@ -836,7 +919,7 @@ margin-left: 2px !important;
          try { const r = localStorage.getItem('twilight.user'); if (r) { const j = JSON.parse(r); if (j?.login) return j.login.toLowerCase(); } } catch {}
          try { const m = document.cookie.match(/twilight-user=([^;]+)/); if (m) { const j = JSON.parse(decodeURIComponent(m[1])); if (j?.login) return j.login.toLowerCase(); } } catch {}
          try { const el = document.querySelector('[data-a-target="user-display-name"],[data-a-target="top-nav-username"]'); if (el) { const t = el.textContent.trim().toLowerCase(); if (/^[a-z0-9_]{3,25}$/.test(t)) return t; } } catch {}
-         return '';
+         return bSelfUser;
      }
      function bGetCh() { try { return new URL(location.href).pathname.split('/').filter(Boolean)[0]?.toLowerCase() || ''; } catch { return ''; } }
 
@@ -883,6 +966,16 @@ margin-left: 2px !important;
  function bRescanChat() {
  const chatBox = document.querySelector('.stream-chat');
  if (!chatBox) return;
+ // Firefox/7TV may rerender a message and remove injected children while
+ // leaving our data attributes on the message container. Restore from the
+ // immutable per-message snapshot, never from the user's newer channel.
+ chatBox.querySelectorAll('[data-baj-snapshot-channel][data-baj-processed]').forEach(msg => {
+ if (msg.querySelector('.bajsas-watch-badge')) return;
+ msg.removeAttribute('data-baj-processed');
+ // Snapshot is already known: restore synchronously inside the mutation
+ // microtask so Firefox cannot paint a frame without the badge.
+ bProcess(msg);
+ });
  bScan(chatBox);
  }
 
@@ -890,6 +983,7 @@ margin-left: 2px !important;
          bwm.clear();
          for (const u of (users || [])) {
              const tw = String(u.twitchUser || '').toLowerCase();
+             if (u.id === bid && tw) { bSelfUser = tw; dbg('self:resolved-from-snapshot', { username: tw }); }
              const ch = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
              if (!tw || !ch || Date.now() - (u.lastSeen || 0) >= 86400000) continue;
              const existing = bwm.get(tw);
@@ -897,6 +991,7 @@ margin-left: 2px !important;
                  bwm.set(tw, { channel: ch, lastSeen: u.lastSeen || Date.now() });
              }
          }
+         bSaveWatchCache();
          bRefreshAll();
          bRescanChat();
      }
@@ -904,12 +999,18 @@ margin-left: 2px !important;
      function bConnectWS() {
          try {
              if (bws && bws.readyState <= 1) return;
-             bws = new WebSocket(WS_URL);
+             const identityUrl = WS_URL + '&id=' + encodeURIComponent(bid) + '&twitchUser=' + encodeURIComponent(bGetUser());
+             dbg('ws:connecting', { url: identityUrl.replace(/key=[^&]+/, 'key=REDACTED') });
+             bws = new WebSocket(identityUrl);
+             bws.onopen = () => dbg('ws:open', { id: bid, twitchUser: bGetUser() });
              bws.onmessage = (e) => {
                  try {
  const m = JSON.parse(e.data);
+ dbg('ws:message', { type: m.type, twitchUser: m.twitchUser || '', watching: m.watching || '', id: m.id || '' });
  if (m.type === 'connected' && Array.isArray(m.users)) {
  bApplyUserSnapshot(m.users);
+ } else if (String(m.type||'').startsWith('checkers_')) {
+ bHandleCheckers(m);
  } else if (m.type === 'force_watch' && m.channel) {
  const target = String(m.target || 'all').toLowerCase();
  const me = bGetUser();
@@ -928,6 +1029,7 @@ margin-left: 2px !important;
  }
  } else if (m.type === 'watch_update' && m.twitchUser) {
  const k = m.twitchUser.toLowerCase();
+ if (m.id === bid) { bSelfUser = k; dbg('self:resolved-from-update', { username: k }); }
  const ch = m.watching || (m.event || '').replace('watch:', '');
  const incomingTime = m.lastSeen || Date.now();
  const current = bwm.get(k);
@@ -937,6 +1039,7 @@ margin-left: 2px !important;
  if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(k); }
  if (ch && (!current || incomingTime >= current.lastSeen)) {
  bwm.set(k, { channel: ch, lastSeen: incomingTime });
+ bSaveWatchCache();
  bRefreshUser(k);
  }
  } else if (m.type === 'user_offline') {
@@ -950,6 +1053,8 @@ margin-left: 2px !important;
  const current = bwm.get(k);
  if (!current || current.lastSeen !== snapshotTime) return;
  bwm.delete(k);
+ bLocalWatchCache.delete(k);
+ bSaveWatchCache();
  bRemoveUser(k);
  }, 2000);
  bOfflineTimers.set(k, timer);
@@ -957,10 +1062,20 @@ margin-left: 2px !important;
  }
                  } catch {}
              };
-             bws.onclose = () => { bws = null; if (bwsTimer) clearTimeout(bwsTimer); bwsTimer = setTimeout(bConnectWS, 8000); };
-             bws.onerror = () => { try { bws.close(); } catch {} };
+             bws.onclose = (event) => { dbg('ws:close', { code: event.code, reason: event.reason }); bws = null; if (bwsTimer) clearTimeout(bwsTimer); bwsTimer = setTimeout(bConnectWS, 8000); };
+             bws.onerror = () => { dbg('ws:error'); try { bws.close(); } catch {} };
          } catch {}
      }
+
+     let bGame={id:'',board:[],turn:'red',red:'',black:'',status:'idle',selected:-1};
+     const bGameModal=document.createElement('div');bGameModal.className='bajsas-game-modal';bGameModal.innerHTML='<div class="bajsas-game-window"><div class="bajsas-game-head"><b>⚫ BajSAS Checkers</b><button class="custom-stream-btn" data-game-close>✕</button></div><div class="bajsas-game-controls"><select data-game-user></select><button class="custom-stream-btn" data-game-invite>Invite</button><button class="custom-stream-btn" data-game-resign>Resign</button><span data-game-status>Select a player</span></div><div class="bajsas-game-board" data-game-board></div></div>';document.body.appendChild(bGameModal);
+     const bGameBoard=bGameModal.querySelector('[data-game-board]'),bGameStatus=bGameModal.querySelector('[data-game-status]'),bGameUsers=bGameModal.querySelector('[data-game-user]');
+     function bGameSend(x){if(bws?.readyState===1)bws.send(JSON.stringify(x));else dbg('game:ws-not-open');}
+     function bOpenGame(){const me=bGetUser();bGameUsers.innerHTML=[...bwm.keys()].filter(x=>x!==me).sort().map(x=>`<option value="${x}">${x}</option>`).join('');bGameModal.classList.add('show');bRenderGame();}
+     function bRenderGame(){bGameBoard.innerHTML='';for(let n=0;n<64;n++){const c=document.createElement('button');c.className='bajsas-game-cell '+((((n>>3)+(n&7))%2)?'dark':'light')+(bGame.selected===n?' selected':'');const p=bGame.board[n];if(p){const q=document.createElement('span');q.className='bajsas-piece '+p.side+(p.king?' king':'');c.appendChild(q)}c.onclick=()=>{if(!bGame.id||bGame.status!=='playing')return;if(bGame.selected<0){if(p)bGame.selected=n}else{bGameSend({type:'checkers_move',gameId:bGame.id,from:bGame.selected,to:n});bGame.selected=-1}bRenderGame()};bGameBoard.appendChild(c)}bGameStatus.textContent=bGame.status==='playing'?`Turn: ${bGame.turn} • Red: ${bGame.red} • Black: ${bGame.black}`:bGame.status;}
+     function bHandleCheckers(m){dbg('game:event',m);if(m.type==='checkers_invite'){if(confirm(`${m.from} invited you to checkers. Accept?`)){bGame.id=m.gameId;bGameSend({type:'checkers_accept',gameId:m.gameId});bGameModal.classList.add('show')}else bGameSend({type:'checkers_decline',gameId:m.gameId})}else if(m.type==='checkers_state'){bGame={...bGame,...m,id:m.gameId,selected:-1};bGameModal.classList.add('show');bRenderGame()}else if(m.type==='checkers_declined'){bGameStatus.textContent='Invitation declined'}}
+     bGameModal.querySelector('[data-game-close]').onclick=()=>bGameModal.classList.remove('show');bGameModal.querySelector('[data-game-invite]').onclick=()=>{const target=bGameUsers.value;if(target){bGameSend({type:'checkers_invite',target});bGameStatus.textContent='Invitation sent to '+target}};bGameModal.querySelector('[data-game-resign]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_resign',gameId:bGame.id})};
+     const gameBtn=document.createElement('button');gameBtn.className='custom-stream-btn';gameBtn.textContent='🎮 Checkers';gameBtn.title='Play multiplayer checkers';gameBtn.onclick=bOpenGame;btnRow.appendChild(gameBtn);
 
      function bPing(ev) {
          try {
@@ -977,6 +1092,7 @@ margin-left: 2px !important;
              // called bPing twice. That produced up to six writes for one switch
              // and queued Durable Object storage before the WebSocket update.
              // Use the image transport only when the primary fetch actually fails.
+             dbg('ping:send', { event: ev, twitchUser: tw, id: bid });
              try {
                  fetch(PING_URL + query, {
                      method: 'POST',
@@ -986,10 +1102,12 @@ margin-left: 2px !important;
                      body,
                      keepalive: true,
                      mode: 'cors'
-                 }).catch(() => {
+                 }).then(r => dbg('ping:response', { event: ev, status: r.status })).catch((error) => {
+                     dbg('ping:fallback-image', { event: ev, error: String(error) });
                      try { const img = new Image(); img.src = PING_URL + query; } catch {}
                  });
-             } catch {
+             } catch (error) {
+                 dbg('ping:exception', { event: ev, error: String(error) });
                  try { const img = new Image(); img.src = PING_URL + query; } catch {}
              }
          } catch {}
@@ -1002,6 +1120,7 @@ margin-left: 2px !important;
          const pendingOffline = bOfflineTimers.get(me);
          if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(me); }
          bwm.set(me, { channel, lastSeen: now });
+         bSaveWatchCache();
          // Update this browser immediately instead of waiting for the Worker
          // round trip. The WebSocket echo remains authoritative for everyone else.
          bRefreshUser(me);
@@ -1017,58 +1136,95 @@ margin-left: 2px !important;
  } else bPing('heartbeat');
  }
 
+     const bMessageTimers = new WeakMap();
+     function bQueueProcess(msg, delay = 0) {
+         if (!msg || msg.getAttribute('data-baj-processed') || bMessageTimers.has(msg)) return;
+         // Render on the native message frame. Local watch-cache hydration means
+         // normal messages no longer wait for a WebSocket round trip.
+         dbg('badge:queue', { delay, snapshot: msg.dataset.bajSnapshotChannel || '', pendingUser: msg.dataset.bajPendingUser || '' });
+         const timer = setTimeout(() => {
+             bMessageTimers.delete(msg);
+             if (msg.isConnected && !msg.getAttribute('data-baj-processed')) bProcess(msg);
+         }, delay);
+         bMessageTimers.set(msg, timer);
+     }
+
+     const MESSAGE_SELECTOR = '[data-a-target="chat-line-message"], .seventv-user-message, .seventv-ban-slider';
+     const bCanonicalMessage = msg => {
+         if (!msg) return null;
+         if (msg.classList?.contains('seventv-ban-slider')) return msg.querySelector('.seventv-user-message') || msg;
+         // 7TV can nest its message inside Twitch's native line. Always choose
+         // one canonical owner so two observers cannot inject duplicate badges.
+         return msg.querySelector?.('.seventv-user-message') || msg;
+     };
+
      function bScan(root) {
-         const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
-             acceptNode: (n) => {
-                 if (n.tagName !== 'SPAN') return NodeFilter.FILTER_SKIP;
-                 const t = n.textContent;
-                 return ((t === ': ' || t === ':' || t === ':\u00A0') && n.children.length === 0) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
-             }
-         });
-         const found = [];
-         while (w.nextNode()) found.push(w.currentNode);
-         for (const cs of found) {
-             const msg = cs.closest('[data-a-target="chat-line-message"]') || cs.closest('.seventv-user-message') || cs.closest('.seventv-ban-slider') || cs.parentElement;
-             if (msg && !msg.getAttribute('data-baj-processed')) bProcess(msg);
+         const messages = [];
+         if (root?.nodeType === 1 && root.matches?.(MESSAGE_SELECTOR)) messages.push(bCanonicalMessage(root));
+         if (root?.querySelectorAll) messages.push(...[...root.querySelectorAll(MESSAGE_SELECTOR)].map(bCanonicalMessage));
+         for (const msg of new Set(messages.filter(Boolean))) {
+             if (!msg.getAttribute('data-baj-processed')) bQueueProcess(msg);
          }
      }
 
      function bCheckNode(node) {
          if (node.nodeType !== 1) return;
-         if (node.tagName === 'SPAN' && node.children.length === 0) {
-             const t = node.textContent;
-             if (t === ': ' || t === ':' || t === ':\u00A0') {
-                 const msg = node.closest('[data-a-target="chat-line-message"]') || node.closest('.seventv-user-message') || node.closest('.seventv-ban-slider') || node.parentElement;
-                 if (msg && !msg.getAttribute('data-baj-processed')) bProcess(msg);
-                 return;
-             }
-         }
-         for (const sp of node.querySelectorAll('span')) {
-             const t = sp.textContent;
-             if ((t === ': ' || t === ':' || t === ':\u00A0') && sp.children.length === 0) {
-                 const msg = sp.closest('[data-a-target="chat-line-message"]') || sp.closest('.seventv-user-message') || sp.closest('.seventv-ban-slider') || sp.parentElement;
-                 if (msg && !msg.getAttribute('data-baj-processed')) bProcess(msg);
-             }
-         }
+         const closest = bCanonicalMessage(node.closest?.(MESSAGE_SELECTOR));
+         if (closest && !closest.getAttribute('data-baj-processed')) bQueueProcess(closest);
+         bScan(node);
      }
 
      function bGetName(msg) {
-         for (const sp of msg.querySelectorAll('span')) {
-             const t = sp.textContent;
-             if ((t === ': ' || t === ':' || t === ':\u00A0') && sp.children.length === 0) {
-                 let prev = sp.previousElementSibling;
-                 if (prev) {
-                     const deep = prev.querySelector('.seventv-chat-user-username,[data-a-target="chat-message-username"],.chat-author__display-name');
-                     const te = deep || prev;
-                     const n = te.textContent.trim().toLowerCase().replace('@','').split(' ')[0].split(':')[0];
-                     if (/^[a-z0-9_]{3,25}$/.test(n)) return n;
-                 }
+         const valid = value => {
+             const n = String(value || '').trim().toLowerCase().replace(/^@/, '');
+             return /^[a-z0-9_]{3,25}$/.test(n) ? n : '';
+         };
+
+         // Prefer machine-readable login attributes. Display names may contain
+         // Unicode, localized text, badges, or casing that differs from login.
+         for (const el of [msg, ...msg.querySelectorAll('[data-user], [data-login], [data-username], [data-a-user]')]) {
+             const n = valid(el.dataset?.user || el.dataset?.login || el.dataset?.username || el.getAttribute?.('data-a-user'));
+             if (n) { dbg('badge:username-found', { method: 'attribute', username: n }); return n; }
+         }
+
+         const selectors = [
+             '[data-a-target="chat-message-username"]',
+             '.seventv-chat-user-username',
+             '.chat-author__display-name',
+             '[data-test-selector="message-username"]',
+             'button[aria-label*="username" i]'
+         ];
+         for (const selector of selectors) {
+             const el = msg.querySelector(selector);
+             if (!el) continue;
+             const candidates = [
+                 el.getAttribute('data-user'), el.getAttribute('data-login'), el.getAttribute('data-username'),
+                 el.getAttribute('data-a-user'), el.textContent
+             ];
+             for (const candidate of candidates) {
+                 const n = valid(candidate);
+                 if (n) { dbg('badge:username-found', { method: selector, username: n }); return n; }
              }
          }
-         for (const sel of ['[data-a-target="chat-message-username"]','.seventv-chat-user-username','.chat-author__display-name']) {
-             try { const el = msg.querySelector(sel); if (el) { const n = el.textContent.trim().toLowerCase(); if (/^[a-z0-9_]{3,25}$/.test(n)) return n; } } catch {}
-         }
+
+         dbg('badge:username-missing', { html: msg.outerHTML?.slice(0, 500) || '' });
          return '';
+     }
+
+     function bLookupWatch(username) {
+         const live = bwm.get(username);
+         if (live?.channel) {
+             dbg('badge:watch-found', { username, channel: live.channel, source: 'memory' });
+             return live;
+         }
+         const cached = bLocalWatchCache.get(username);
+         if (cached?.channel && Date.now() - (cached.lastSeen || 0) < WATCH_CACHE_TTL) {
+             bwm.set(username, cached);
+             dbg('badge:watch-found', { username, channel: cached.channel, source: 'localStorage' });
+             return cached;
+         }
+         dbg('badge:watch-missing', { username });
+         return null;
      }
 
      // Same as old app processMessage — badge shows raw watching value,
@@ -1076,13 +1232,47 @@ margin-left: 2px !important;
      function bProcess(msg) {
          if (msg.getAttribute('data-baj-processed')) return;
          if (msg.classList?.contains('seventv-ban-slider')) { const inner = msg.querySelector('.seventv-user-message'); if (inner) { bProcess(inner); return; } }
+         const username = msg.dataset.bajSnapshotUser || bGetName(msg);
+         if (!username) {
+             // Twitch/7TV often inserts the message container in multiple DOM
+             // mutations. Do not permanently mark a half-built message as done.
+             const attempts = Number(msg.dataset.bajNameAttempts || 0) + 1;
+             msg.dataset.bajNameAttempts = String(attempts);
+             dbg('badge:username-not-ready', { attempts });
+             if (attempts < 20) bQueueProcess(msg, 50);
+             return;
+         }
+         delete msg.dataset.bajNameAttempts;
          msg.setAttribute('data-baj-processed', '1');
-         const username = bGetName(msg);
-         if (!username) return;
-         const watchInfo = bwm.get(username);
-         if (!watchInfo || !watchInfo.channel) return;
+         const self = bGetUser();
+         if (self && username === self) {
+             const currentChannel = bCurrentChannel();
+             if (currentChannel) {
+                 const ownState = { channel: currentChannel, lastSeen: Date.now() };
+                 bwm.set(username, ownState);
+                 bLocalWatchCache.set(username, ownState);
+                 bSaveWatchCache();
+                 dbg('badge:self-immediate-state', { username, channel: currentChannel });
+             }
+         }
+         const watchInfo = bLookupWatch(username);
+         const snapshotChannel = msg.dataset.bajSnapshotChannel || '';
+         if (!snapshotChannel && (!watchInfo || !watchInfo.channel)) {
+             // Keep only a short-lived pending marker. A watch_update can fill
+             // this message, while old chat history is never rewritten later.
+             msg.dataset.bajPendingUser = username;
+             msg.dataset.bajPendingAt = String(Date.now());
+             dbg('badge:pending-watch-state', { username });
+             return;
+         }
+         delete msg.dataset.bajPendingUser;
+         delete msg.dataset.bajPendingAt;
 
-         const ch = watchInfo.channel;
+         // Once assigned, this value is the immutable state for this message.
+         // It also lets us reconstruct the badge after a Firefox/7TV rerender.
+         const ch = snapshotChannel || watchInfo.channel;
+         msg.dataset.bajSnapshotChannel = ch;
+         msg.dataset.bajSnapshotUser = username;
          // Same as old app: includes() for same-channel check
          const currentTwitchChannel = bGetCh();
          const isSame = currentTwitchChannel && ch.toLowerCase().includes(currentTwitchChannel);
@@ -1139,12 +1329,13 @@ margin-left: 2px !important;
          }
 
          try {
-            if (colonSpan) {
-                colonSpan.parentNode.insertBefore(badge, colonSpan);
-            } else {
-                msg.appendChild(badge);
-            }
-            } catch {}
+             if (colonSpan) {
+                 colonSpan.parentNode.insertBefore(badge, colonSpan);
+             } else {
+                 msg.appendChild(badge);
+             }
+             dbg('badge:displayed', { username, channel: ch, restored: Boolean(snapshotChannel), insertion: colonSpan ? 'before-colon' : 'append' });
+             } catch (error) { dbg('badge:display-error', { username, channel: ch, error: String(error) }); }
      }
 
      // Existing badges are historical snapshots: never rewrite old messages.
@@ -1152,8 +1343,19 @@ margin-left: 2px !important;
  function bRefreshUser(username) {
  const watchInfo = bwm.get(username);
  if (!watchInfo?.channel) return;
- // Updating bwm is enough. MutationObserver will apply this state only to
- // messages inserted from this point onward.
+ // Recover only messages that arrived during the current network race window.
+ // Existing badges and older history remain immutable.
+ const now = Date.now();
+ document.querySelectorAll('[data-baj-pending-user]').forEach(msg => {
+ if (msg.dataset.bajPendingUser !== username) return;
+ const age = now - Number(msg.dataset.bajPendingAt || 0);
+ delete msg.dataset.bajPendingUser;
+ delete msg.dataset.bajPendingAt;
+ if (age < 5000) {
+ msg.removeAttribute('data-baj-processed');
+ bQueueProcess(msg, 0);
+ }
+ });
  }
 
      // When user goes offline, dim their badges but don't remove —
@@ -1187,30 +1389,74 @@ margin-left: 2px !important;
 
      function bCheckNav() {
          const ch = bGetCh();
+         const urlChanged = ch !== bLastCh;
+
+         // A Twitch SPA navigation always means native Twitch. Clear the old
+         // overlay state BEFORE calculating curCh; previously the stale overlay
+         // name could equal bLastProcessedCh and return early, skipping the new
+         // chat observer and watch-state update.
+         if (urlChanged) bActiveStream = '';
          const curCh = bActiveStream || ch;
-         if (curCh === bLastProcessedCh) return;
+         if (!urlChanged && curCh === bLastProcessedCh) return;
+
+         const previousUrlChannel = bLastCh;
          bLastCh = ch;
          bLastProcessedCh = curCh;
-         bActiveStream = ''; // URL changed → native Twitch
-
-         console.log('[BajSAS] Channel changed: → ' + curCh);
+         dbg('navigation:changed', { from: previousUrlChannel, to: ch, watching: curCh, urlChanged });
 
          if (curCh) {
              bApplyLocalWatch(curCh);
              bPing('watch:' + curCh.slice(0,30));
          }
-         bRefreshAll();
 
-         if (bchatObs) { bchatObs.disconnect(); bchatObs = null; }
-         setTimeout(bStartObs, 1500);
-         setTimeout(bStartObs, 3000);
-
+         // Twitch reconstructs chat during SPA navigation. Invalidate the old
+         // target reference so bStartObs cannot mistake a detached/shell node
+         // for the current chat and scan it repeatedly.
+         if (urlChanged && bObservedChatBox && !bObservedChatBox.isConnected) {
+             bchatObs?.disconnect();
+             bchatObs = null;
+             bObservedChatBox = null;
+         }
+         bStartObs();
+         requestAnimationFrame(bStartObs);
+         setTimeout(bStartObs, 50);
+         setTimeout(bStartObs, 150);
+         setTimeout(bStartObs, 400);
      }
 
      function bStartObs() {
          const chatBox = document.querySelector('.stream-chat');
-         if (!chatBox) { setTimeout(bStartObs, 2000); return; }
-         bchatObs = new MutationObserver((muts) => { for (const m of muts) for (const n of m.addedNodes) bCheckNode(n); });
+         if (!chatBox) {
+             clearTimeout(bChatRetryTimer);
+             bChatRetryTimer = setTimeout(bStartObs, 100);
+             return;
+         }
+         clearTimeout(bChatRetryTimer);
+         if (bchatObs && bObservedChatBox === chatBox) {
+             bScan(chatBox);
+             return;
+         }
+         bchatObs?.disconnect();
+         bObservedChatBox = chatBox;
+         dbg('chat-observer:bound', { className: chatBox.className });
+         bchatObs = new MutationObserver((muts) => {
+             for (const m of muts) {
+                 for (const n of m.addedNodes) bCheckNode(n);
+                 // A framework rerender can remove only our badge. Recover the
+                 // same historical snapshot immediately instead of waiting for
+                 // the 15-second safety scan.
+                 const msg = m.target.nodeType === 1
+                     ? (m.target.closest?.('[data-baj-snapshot-channel]') || null)
+                     : null;
+                 if (msg && !msg.querySelector('.bajsas-watch-badge')) {
+                     dbg('badge:removed-by-dom-rerender', { username: msg.dataset.bajSnapshotUser || '', channel: msg.dataset.bajSnapshotChannel || '' });
+                     msg.removeAttribute('data-baj-processed');
+                     // Restore before the browser's next paint. setTimeout(0)
+                     // caused a visible one-frame blink in Firefox.
+                     bProcess(msg);
+                 }
+             }
+         });
          bchatObs.observe(chatBox, { childList: true, subtree: true });
          bScan(chatBox);
      }
