@@ -2,7 +2,7 @@ javascript:(function () {
   'use strict';
   if (window.BajSASRPG?.loaded) return window.BajSASRPG.open();
 
-  const VERSION = 'rpg-prototype-0.4-integrated';
+  const VERSION = 'rpg-prototype-0.5-player-mode';
   const SAVE_KEY = 'bajsas_rpg_profile_v1';
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
   const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -50,8 +50,8 @@ javascript:(function () {
   const style = document.createElement('style');
   style.id = 'bajsas-rpg-style';
   style.textContent = `
-    .bajrpg{display:none;position:absolute;right:14px;bottom:86px;width:320px;min-width:250px;max-width:min(560px,76vw);max-height:calc(100% - 108px);overflow:auto;z-index:2147483645;color:#dce7c4;font:12px/1.3 monospace;pointer-events:auto;opacity:.94;transform:translateZ(0);filter:drop-shadow(0 16px 30px #000);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);contain:layout paint style}
-    .bajrpg.show{display:block;animation:bajrpg-in .18s ease-out}.bajrpg:hover{opacity:1}.bajrpg-window{position:relative;background:rgba(18,25,20,.88);border:2px solid #64735a;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:8px;border-radius:5px}.bajrpg-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #4c5946;padding-bottom:6px;margin-bottom:7px}.bajrpg-title{font-weight:bold;color:#d7c36b}.bajrpg-resize{position:absolute!important;left:-7px;top:36px;z-index:4;width:27px;height:27px;padding:0!important;border-radius:50%!important;cursor:nwse-resize!important;touch-action:none;user-select:none}.bajrpg button{font:11px monospace;color:#e9f0d9;background:linear-gradient(#4f5c47,#30392d);border:1px solid #7e906f;padding:5px 8px;cursor:pointer;border-radius:3px}.bajrpg button:hover{filter:brightness(1.16)}.bajrpg button:disabled{opacity:.45;cursor:not-allowed}.bajrpg-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.bajrpg-card{background:rgba(0,0,0,.24);border:1px solid #4c5946;padding:7px}.bajrpg-stat{display:flex;justify-content:space-between}.bajrpg-bar{height:8px;background:#252b23;border:1px solid #596451;margin:3px 0 6px;overflow:hidden}.bajrpg-fill{height:100%;transition:width .25s}.bajrpg-hp{background:#b83d35}.bajrpg-xp{background:#c6ae45}.bajrpg canvas{width:100%;aspect-ratio:16/9;display:block;background:rgba(36,42,36,.66);backdrop-filter:blur(7px);border:2px ridge #69745f;image-rendering:pixelated}.bajrpg-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:7px}.bajrpg-log{height:68px;overflow:auto;background:rgba(16,21,16,.78);border:1px inset #56614e;padding:5px;margin-top:7px;color:#b9c7a7}.bajrpg-loot{color:#e3c85d}.bajrpg-damage{color:#ef776c}.bajrpg-good{color:#75d784}@keyframes bajrpg-in{from{opacity:0;transform:translate3d(12px,8px,0) scale(.97)}to{opacity:1;transform:none}}@media(max-width:800px){.bajrpg{width:290px;min-width:235px;max-width:90vw;right:7px}}
+    .bajrpg{display:none;position:absolute;inset:0;width:100%;height:100%;overflow:auto;z-index:2147483645;color:#dce7c4;font:13px/1.35 monospace;pointer-events:auto;opacity:1;transform:translateZ(0);background:radial-gradient(circle at 70% 20%,rgba(151,137,68,.14),transparent 35%),linear-gradient(rgba(11,16,12,.96),rgba(18,25,20,.98));contain:layout paint style}
+    .bajrpg.show{display:grid;place-items:center;animation:bajrpg-in .22s ease-out}.bajrpg-window{position:relative;width:min(980px,96%);height:min(94%,720px);overflow:auto;background:rgba(18,25,20,.9);border:2px solid #64735a;backdrop-filter:blur(10px);padding:12px;border-radius:5px;box-shadow:0 24px 80px #000}.bajrpg-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #4c5946;padding-bottom:8px;margin-bottom:9px}.bajrpg-title{font-weight:bold;color:#d7c36b;font-size:15px}.bajrpg-resize{display:none!important}.bajrpg button{font:12px monospace;color:#e9f0d9;background:linear-gradient(#4f5c47,#30392d);border:1px solid #7e906f;padding:6px 10px;cursor:pointer;border-radius:3px}.bajrpg button:hover{filter:brightness(1.16)}.bajrpg button:disabled{opacity:.45;cursor:not-allowed}.bajrpg-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.bajrpg-card{background:rgba(0,0,0,.24);border:1px solid #4c5946;padding:9px}.bajrpg-stat{display:flex;justify-content:space-between}.bajrpg-bar{height:9px;background:#252b23;border:1px solid #596451;margin:3px 0 6px;overflow:hidden}.bajrpg-fill{height:100%;transition:width .25s}.bajrpg-hp{background:#b83d35}.bajrpg-xp{background:#c6ae45}.bajrpg canvas{width:100%;max-height:52vh;aspect-ratio:16/9;display:block;background:rgba(36,42,36,.66);backdrop-filter:blur(7px);border:2px ridge #69745f;image-rendering:pixelated}.bajrpg-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}.bajrpg-log{height:78px;overflow:auto;background:rgba(16,21,16,.78);border:1px inset #56614e;padding:7px;margin-top:9px;color:#b9c7a7}.bajrpg-loot{color:#e3c85d}.bajrpg-damage{color:#ef776c}.bajrpg-good{color:#75d784}@keyframes bajrpg-in{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}@media(max-width:800px){.bajrpg-window{width:98%;height:98%;padding:7px}.bajrpg{font-size:11px}.bajrpg button{font-size:10px;padding:5px}.bajrpg-log{height:58px}}
   `;
   document.head.appendChild(style);
 
@@ -81,15 +81,6 @@ javascript:(function () {
   }, 300);
 
   const $ = selector => root.querySelector(selector);
-  try { const width = Number(localStorage.getItem('bajsas_rpg_width')); if (width) root.style.width = clamp(width, 250, 560) + 'px'; } catch {}
-  const resizeHandle = $('[data-rpg-resize]');
-  resizeHandle.addEventListener('pointerdown', event => {
-    event.preventDefault(); resizeHandle.setPointerCapture(event.pointerId);
-    const startX = event.clientX, startWidth = root.getBoundingClientRect().width;
-    const move = e => { const max = Math.min(560, innerWidth * .76); root.style.width = Math.round(clamp(startWidth + startX - e.clientX, 250, max)) + 'px'; };
-    const end = e => { resizeHandle.releasePointerCapture?.(e.pointerId); resizeHandle.removeEventListener('pointermove', move); resizeHandle.removeEventListener('pointerup', end); resizeHandle.removeEventListener('pointercancel', end); localStorage.setItem('bajsas_rpg_width', String(Math.round(root.getBoundingClientRect().width))); };
-    resizeHandle.addEventListener('pointermove', move); resizeHandle.addEventListener('pointerup', end); resizeHandle.addEventListener('pointercancel', end);
-  });
   const canvas = $('[data-rpg-canvas]'), ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   const log = (message, className = '') => {
@@ -209,7 +200,7 @@ javascript:(function () {
   root.querySelectorAll('[data-action]').forEach(button => button.onclick = () => act(button.dataset.action));
   $('[data-rpg-new]').onclick = () => newEnemy('battle', null);
   $('[data-rpg-map]').onclick = () => { view='map'; battle=null; pendingMission=null; render(); };
-  $('[data-rpg-close]').onclick = () => root.classList.remove('show');
+  $('[data-rpg-close]').onclick = () => close();
   $('[data-rpg-sound]').onclick = () => { sound = !sound; localStorage.setItem('bajsas_rpg_sound', sound ? '1' : '0'); render(); tone(640); };
 
   function installButton() {
@@ -219,10 +210,11 @@ javascript:(function () {
     const row = ui.querySelector('.custom-stream-btn')?.parentElement; if (!row || row.querySelector('[data-rpg-open]')) return true;
     const button = document.createElement('button'); button.className = 'custom-stream-btn'; button.dataset.rpgOpen = '1'; button.textContent = '☢ RPG'; button.onclick = () => open(); row.appendChild(button); return true;
   }
-  function open() { root.classList.add('show'); render(); }
+  function open() { window.BajSASPluginAPI?.enterPlayerMode?.(); root.classList.add('show'); render(); }
+  function close() { root.classList.remove('show'); window.BajSASPluginAPI?.exitPlayerMode?.(); }
   const timer = setInterval(() => { if (installButton()) clearInterval(timer); }, 250);
   installButton();
 
-  window.BajSASRPG = { loaded: true, version: VERSION, open, close: () => root.classList.remove('show'), reset: () => { profile = freshProfile(); battle = null; save(); render(); } };
+  window.BajSASRPG = { loaded: true, version: VERSION, open, close, reset: () => { profile = freshProfile(); battle = null; view='map'; pendingMission=null; save(); render(); } };
   render();
 })();
