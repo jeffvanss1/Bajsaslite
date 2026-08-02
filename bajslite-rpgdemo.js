@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 6.15-rpg-playable';
+ const APP_VERSION = 'lite 6.16-rpg-player-mode';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -1152,6 +1152,13 @@ margin-left: 2px !important;
      bGameModal.addEventListener('click',e=>{if(e.target.closest('button,select,input'))bGameTone('ui')},true);bGameModal.querySelector('[data-game-close]').onclick=()=>{bLeaveGame();bGameModal.classList.remove('show')};bGameModal.querySelector('[data-game-audio]').onclick=e=>{bGameAudioEnabled=!bGameAudioEnabled;localStorage.setItem('bajsas_game_audio',bGameAudioEnabled?'1':'0');e.currentTarget.textContent=bGameAudioEnabled?'🔊':'🔇';if(bGameAudioEnabled)bGameTone('start')};bGameModal.querySelector('[data-game-audio]').textContent=bGameAudioEnabled?'🔊':'🔇';bGameModal.querySelector('[data-room-create]').onclick=()=>bGameSend({type:'checkers_create_room',roomName:bGameModal.querySelector('[data-room-name]').value||`${bGetUser()}'s room`,timeControlMin:Number(bGameModal.querySelector('[data-room-time]').value)});bRoomCancel.onclick=()=>{const gameId=bRoomCancel.dataset.gameId||bGame.id;if(gameId&&confirm('Cancel this open room?')){bGameSend({type:'checkers_close_room',gameId});bRoomCancel.classList.add('bajsas-hidden');bGame={...bGame,id:'',status:'idle'}}};bGameModal.querySelector('[data-room-refresh]').onclick=()=>bGameSend({type:'checkers_lobby_list'});bGameBack.onclick=()=>{bLeaveGame();bShowLobby()};bGameModal.querySelector('[data-game-resign]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_resign',gameId:bGame.id})};bGameModal.querySelector('[data-game-draw]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_draw',gameId:bGame.id})};bGameModal.querySelector('[data-room-close]').onclick=()=>{if(bGame.id&&confirm('Close this room?'))bGameSend({type:'checkers_close_room',gameId:bGame.id})};
      const gameBtn=document.createElement('button');gameBtn.className='custom-stream-btn';gameBtn.textContent='🎮 Checkers';gameBtn.title='Play multiplayer checkers';gameBtn.onclick=bOpenGame;btnRow.appendChild(gameBtn);
 
+     let rpgPlayerState=null;
+     window.BajSASPluginAPI={
+       version:APP_VERSION,
+       enterPlayerMode(){if(rpgPlayerState)return;rpgPlayerState={nativeMuted:v.muted,iframeSrc:i.src,iframeDisplay:i.style.display};v.muted=true;i.src='';i.style.display='none';bGameModal.classList.remove('show');dbg('plugin:player-mode-enter')},
+       exitPlayerMode(){if(!rpgPlayerState)return;v.muted=rpgPlayerState.nativeMuted;if(rpgPlayerState.iframeSrc){i.src=rpgPlayerState.iframeSrc;i.style.display=rpgPlayerState.iframeDisplay||'block'}rpgPlayerState=null;dbg('plugin:player-mode-exit')},
+       getUser:()=>bGetUser(),getUserId:()=>bid
+     };
      const RPG_PLUGIN_URL='https://raw.githubusercontent.com/jeffvanss1/Bajsaslite/refs/heads/main/rpg.js';
      let rpgLoading=null;
      const rpgBtn=document.createElement('button');rpgBtn.className='custom-stream-btn';rpgBtn.dataset.rpgLoader='1';rpgBtn.textContent='☢ RPG';rpgBtn.title='Load BajSAS Wasteland RPG';
