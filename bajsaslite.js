@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 6.19;
+ const APP_VERSION = 'lite 6.19';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
