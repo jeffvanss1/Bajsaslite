@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 4.9';
+ const APP_VERSION = 'lite 6.19;
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -166,6 +166,30 @@ margin-left: 2px !important;
  .bajsas-offline-platform { z-index:1; color:#adadb8; font-size:10px; }
  .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
  .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
+ .bajsas-presence-toggle { position:absolute!important; top:12px; right:12px; z-index:30; pointer-events:auto!important; opacity:1; transform:translate3d(0,0,0); transition:opacity .2s ease,transform .2s ease; background:rgba(20,20,24,.82)!important; border:1px solid rgba(255,255,255,.16)!important; box-shadow:0 5px 18px rgba(0,0,0,.38); }
+ .bajsas-presence-toggle.is-idle { opacity:0; transform:translate3d(0,-5px,0); pointer-events:none!important; }
+ .stream-container-mod:hover .bajsas-presence-toggle.is-idle,.bajsas-presence-toggle.panel-open { opacity:.88; transform:translate3d(0,0,0); pointer-events:auto!important; }
+ .bajsas-presence-toggle:hover { opacity:1!important; }
+ .bajsas-presence-panel { display:none; position:absolute; top:48px; right:12px; z-index:29; pointer-events:auto; width:min(290px,62vw); max-height:min(360px,65vh); overflow:auto; background:rgba(14,14,18,.94); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.16); border-radius:7px; box-shadow:0 16px 40px rgba(0,0,0,.6); }
+ .bajsas-presence-panel.show { display:block; animation:bajPresenceIn .14s ease-out; }
+ @keyframes bajPresenceIn { from { opacity:0; transform:translate3d(8px,-6px,0) scale(.98); } to { opacity:1; transform:none; } }
+ @media (max-width:600px) { .bajsas-presence-toggle{top:8px;right:8px}.bajsas-presence-panel{top:44px;right:6px;width:min(290px,calc(100% - 12px))} }
+ .bajsas-presence-group { border-top:1px solid rgba(255,255,255,.1); }
+ .bajsas-presence-group:first-child { border-top:0; }
+ .bajsas-presence-group > summary { list-style:none; }
+ .bajsas-presence-group > summary::-webkit-details-marker { display:none; }
+ .bajsas-presence-channel { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 9px; background:#26262c; color:#efeff1; font-size:11px; font-weight:800; cursor:pointer; user-select:none; }
+ .bajsas-presence-channel:hover { background:#303038; }
+ .bajsas-presence-channel-name::before { content:'▸'; display:inline-block; width:14px; color:#adadb8; }
+ .bajsas-presence-group[open] .bajsas-presence-channel-name::before { content:'▾'; }
+ .bajsas-presence-count { min-width:22px; padding:1px 7px; border-radius:999px; text-align:center; color:#d8c7ff; background:rgba(145,71,255,.22); border:1px solid rgba(191,148,255,.28); }
+ .bajsas-presence-users { display:flex; flex-wrap:wrap; gap:5px; padding:7px 8px 9px; background:rgba(0,0,0,.16); }
+ .bajsas-presence-row { display:inline-flex; align-items:center; gap:4px; max-width:100%; padding:3px 7px; border:1px solid rgba(255,255,255,.1); border-radius:999px; background:rgba(255,255,255,.055); font-size:10px; }
+ .bajsas-presence-user { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ .bajsas-presence-dot { width:6px; height:6px; margin-right:1px; }
+ .bajsas-presence-dot { display:inline-block; width:7px; height:7px; margin-right:5px; border-radius:50%; background:#00c853; box-shadow:0 0 7px rgba(0,200,83,.7); }
+ .bajsas-presence-empty { padding:16px; text-align:center; color:#adadb8; font-size:11px; }
+ .bajsas-game-modal{display:none;position:absolute;right:14px;bottom:86px;z-index:2147483646;pointer-events:auto;width:310px;min-width:250px;max-width:min(520px,75vw);max-height:calc(100% - 110px);overflow:auto;opacity:.94;transform:translateZ(0);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);contain:layout paint style}.bajsas-hidden{display:none!important}.bajsas-game-resize{position:absolute!important;left:-8px!important;top:-8px!important;z-index:8;cursor:nwse-resize!important;user-select:none;touch-action:none;font-size:16px!important;line-height:1!important;width:27px;height:27px;display:grid!important;place-items:center;padding:0!important;border-radius:50%!important;opacity:.82}.bajsas-game-resize:hover{opacity:1}.bajsas-game-modal.show{display:block;animation:bajGameIn .2s ease-out}.bajsas-game-modal:hover{opacity:1}.bajsas-game-modal.lobby-mode .bajsas-game-window{background-color:#2a1d14;background-image:linear-gradient(45deg,rgba(221,190,145,.09) 25%,transparent 25%,transparent 75%,rgba(221,190,145,.09) 75%),linear-gradient(45deg,rgba(221,190,145,.09) 25%,transparent 25%,transparent 75%,rgba(221,190,145,.09) 75%),linear-gradient(160deg,rgba(96,70,47,.9),rgba(42,29,20,.88));background-position:0 0,14px 14px,0 0;background-size:28px 28px,28px 28px,100% 100%;border-color:#b38b5d;color:#f8e7c3;box-shadow:0 18px 55px rgba(0,0,0,.72),inset 0 0 0 1px rgba(255,240,205,.12)}.bajsas-game-modal.lobby-mode .bajsas-game-head{border-bottom:2px groove #9c764f;padding:2px 2px 8px;color:#ffe8bd}.bajsas-game-modal.lobby-mode .custom-stream-btn{background:linear-gradient(#8a6545,#5b3e29)!important;color:#fff0d2!important;border:1px solid #b99368!important;box-shadow:inset 0 1px rgba(255,255,255,.18),0 2px 2px rgba(0,0,0,.4)}.bajsas-game-modal.lobby-mode .custom-stream-btn:hover{background:linear-gradient(#a57b54,#6d4a30)!important}.bajsas-game-modal.lobby-mode [data-room-create]{background:linear-gradient(#cf493d,#8f241f)!important;border-color:#e67c67!important}.bajsas-game-modal.lobby-mode [data-room-name],.bajsas-game-modal.lobby-mode [data-room-time]{background:#f7e6c4!important;color:#2b1c12!important;border:2px inset #c9a87a!important;border-radius:4px!important}.bajsas-game-modal.lobby-mode [data-game-status]{color:#dbc39c;font-weight:700}.bajsas-game-window{position:relative;width:100%;background:linear-gradient(rgba(81,69,55,.9),rgba(44,38,31,.88));color:#f6e6bd;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:2px solid #88765c;border-radius:7px;padding:9px;box-shadow:0 18px 55px #000}.bajsas-game-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.bajsas-game-board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:calc(100% - 20px);max-width:420px;aspect-ratio:1;margin:0 auto;container-type:inline-size;border:3px ridge rgba(154,129,93,.82);background:rgba(40,29,20,.5);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:inset 0 0 18px rgba(0,0,0,.62),0 7px 18px rgba(0,0,0,.38);transform:translateZ(0);overflow:hidden}.bajsas-game-cell{display:grid;place-items:center;border:0;padding:0;min-width:0;min-height:0;overflow:hidden}.bajsas-game-cell.light{background:rgba(201,181,141,.5)}.bajsas-game-cell.dark{background:rgba(114,84,61,.5)}.bajsas-piece{position:relative;display:grid;place-items:center;width:72%;height:auto;aspect-ratio:1;border-radius:50%;box-sizing:border-box;box-shadow:inset 0 0 0 3px rgba(255,255,255,.18),0 3px 5px #000}.bajsas-piece.red{background:#d9382f}.bajsas-piece.black{background:#151515}.bajsas-piece.king:after{content:'★';position:absolute;inset:0;display:grid;place-items:center;color:#ffd54f;font-size:clamp(11px,4.5cqi,18px);line-height:1;pointer-events:none}.bajsas-game-cell.selected{outline:4px solid #69f0ae;outline-offset:-4px}.bajsas-game-cell.legal{box-shadow:inset 0 0 0 5px rgba(255,213,79,.78)}.bajsas-game-cell.selectable .bajsas-piece{filter:drop-shadow(0 0 5px #fff1a8)}.bajsas-game-controls{display:flex;gap:6px;align-items:center;margin-bottom:7px;flex-wrap:wrap}.bajsas-game-controls select{background:#211d18;color:#fff;border:1px solid #8b7759;padding:5px}.bajsas-lobby{background:rgba(30,20,13,.82);border:2px inset #8d6947;padding:8px;border-radius:5px;max-height:310px;overflow:auto;scrollbar-color:#8d6947 #2a1d14}.bajsas-room-card{position:relative;background:linear-gradient(90deg,#f5e4c2,#dcc096);color:#2b211a;border:2px solid #8b6745;border-radius:6px;padding:9px 9px 9px 42px;margin-bottom:8px;box-shadow:0 3px 0 #160e09,inset 0 0 0 1px #fff4dc}.bajsas-room-card:before{content:"";position:absolute;left:9px;top:10px;width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff6b62,#b51f1a 65%,#6d0e0b);box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 2px rgba(0,0,0,.45)}.bajsas-room-card:nth-child(even):before{background:radial-gradient(circle at 35% 30%,#555,#151515 65%,#000)}.bajsas-room-top{display:flex;justify-content:space-between;gap:8px;font-weight:900}.bajsas-room-top span:last-child{background:#2b211a;color:#f8d989;border-radius:99px;padding:2px 7px;font-size:10px}.bajsas-room-meta{font-size:10px;color:#715f49;margin:5px 0 7px}.bajsas-room-actions{display:flex;gap:5px;justify-content:flex-end}.bajsas-room-actions button{border:1px solid #5e4933;border-radius:5px;padding:4px 12px;font-weight:900;cursor:pointer;box-shadow:0 2px 0 #3d2c1e}.bajsas-room-join{background:#c9332d;color:#fff}.bajsas-room-watch{background:#27211d;color:#f7e7c1}.bajsas-lobby-empty{text-align:center;padding:30px 8px;color:#ddc79d}.bajsas-game-score{display:grid;grid-template-columns:1fr auto 1fr;gap:7px;align-items:center;margin:7px 0;text-align:center}.bajsas-game-player{background:rgba(0,0,0,.25);padding:5px;border:1px solid #76644c}.bajsas-game-clock{font:bold 16px monospace;color:#fff}.bajsas-game-actions{display:flex;justify-content:center;gap:6px;margin-top:8px;flex-wrap:wrap}.bajsas-game-head>b{font-size:13px;letter-spacing:.025em;text-shadow:0 1px 2px #000}.bajsas-game-head [data-game-side]{background:rgba(0,0,0,.26);border:1px solid rgba(255,222,160,.25);padding:3px 7px;border-radius:99px;font-size:10px}.bajsas-game-cell{position:relative;transition:filter .12s,transform .12s}.bajsas-game-cell:hover{filter:brightness(1.08)}.bajsas-game-cell.last-move{box-shadow:inset 0 0 0 3px rgba(88,184,255,.58)}.bajsas-game-cell.legal{box-shadow:none}.bajsas-game-cell.legal:after{content:"";position:absolute;width:25%;height:25%;border-radius:50%;background:rgba(255,222,82,.88);box-shadow:0 0 0 3px rgba(59,35,15,.3),0 0 12px rgba(255,222,82,.75)}.bajsas-piece{transition:transform .14s,filter .14s}.bajsas-game-cell.selectable:hover .bajsas-piece{transform:translateY(-2px) scale(1.04)}.bajsas-piece.red{background:radial-gradient(circle at 35% 28%,#ff766d,#cf302a 48%,#7e1512 78%)}.bajsas-piece.black{background:radial-gradient(circle at 35% 28%,#686868,#242424 48%,#050505 80%)}.bajsas-game-player{transition:border-color .15s,box-shadow .15s,background .15s}.bajsas-game-player.active{border-color:#ffd45e;background:rgba(255,204,64,.1);box-shadow:0 0 0 1px rgba(255,212,94,.28),0 0 14px rgba(255,191,52,.18)}.bajsas-game-player.me{outline:1px solid rgba(105,240,174,.48);outline-offset:1px}.bajsas-game-controls [data-game-status]{display:inline-block;padding:3px 7px;border-radius:99px;background:rgba(0,0,0,.24);font-size:10px}.bajsas-game-resize:hover{color:#ffe082!important;transform:scale(1.08)}@media(prefers-reduced-motion:reduce){.bajsas-game-modal.show{animation:none}.bajsas-game-cell,.bajsas-piece{transition:none}}@keyframes bajGameIn{from{opacity:0;transform:translate3d(16px,10px,0) scale(.96)}to{opacity:1;transform:none}}@media(max-width:800px){.bajsas-game-modal{width:290px;min-width:230px;max-width:88vw;right:8px;bottom:72px}.bajsas-game-board{width:calc(100% - 16px)}}
  `;
  document.head.appendChild(s);
  };
@@ -369,7 +393,13 @@ margin-left: 2px !important;
  }
  };
 
- const targetContainer = v.closest('div') || v.parentElement;
+ const findStablePlayerContainer = () => {
+ const video = document.querySelector('video');
+ return video?.closest('[data-a-target="video-player"], [data-test-selector="video-player__video-container"], .video-player, .persistent-player')
+ || video?.parentElement?.parentElement
+ || video?.parentElement;
+ };
+ let targetContainer = findStablePlayerContainer();
  targetContainer.style.position = 'relative';
  targetContainer.classList.add('stream-container-mod');
 
@@ -389,9 +419,15 @@ margin-left: 2px !important;
  clearTimeout(streamUiIdleTimer);
  targetContainer.classList.remove('stream-ui-active');
  };
- targetContainer.addEventListener('pointermove', setStreamUiActive, { passive: true });
- targetContainer.addEventListener('pointerdown', setStreamUiActive, { passive: true });
- targetContainer.addEventListener('pointerleave', setStreamUiIdle, { passive: true });
+ const boundPlayerContainers = new WeakSet();
+ const bindPlayerContainer = container => {
+ if (!container || boundPlayerContainers.has(container)) return;
+ boundPlayerContainers.add(container);
+ container.addEventListener('pointermove', setStreamUiActive, { passive: true });
+ container.addEventListener('pointerdown', setStreamUiActive, { passive: true });
+ container.addEventListener('pointerleave', setStreamUiIdle, { passive: true });
+ };
+ bindPlayerContainer(targetContainer);
  window.addEventListener('blur', setStreamUiIdle);
  document.addEventListener('visibilitychange', () => {
  if (document.hidden) setStreamUiIdle();
@@ -637,6 +673,7 @@ margin-left: 2px !important;
  const createBtn = (text, src, desc, isNative = false, emoteUrl = '') => {
  const btn = document.createElement('button');
  btn.className = 'custom-stream-btn';
+ btn.dataset.streamSelector = '1';
  btn.title = desc || '';
 
  const dot = document.createElement('span');
@@ -671,17 +708,19 @@ margin-left: 2px !important;
  nameEl.style.cssText = 'visibility:visible!important;opacity:1!important;font-size:12px!important;font-weight:bold!important;color:#fff!important;white-space:nowrap!important;overflow:visible!important;display:block!important;';
  btn.appendChild(nameEl);
 
- btn.onclick = () => {
- if (isNative) {
+     btn.onclick = (event) => {
+         if (isNative) {
+             dbg('player:native-selected', { source: event?.isTrusted ? 'user' : 'script' });
  v.muted = false;
  try { v.play(); } catch {}
  i.src = '';
  i.style.display = 'none';
  removeForsenChat();
- } else {
- v.muted = true;
+         } else {
+             dbg('player:overlay-selected', { name: text, url: src, source: event?.isTrusted ? 'user' : 'script' });
+             v.muted = true;
 
- i.src = formatUrl(src);
+             i.src = formatUrl(src);
  i.style.display = 'block';
 
  if (text.toLowerCase() === 'forsen') {
@@ -838,6 +877,23 @@ margin-left: 2px !important;
  wrapper.appendChild(box);
  targetContainer.appendChild(wrapper);
 
+ // Twitch replaces player DOM during ads, quality changes, and SPA navigation.
+ // Keep the existing iframe alive and move it to the new stable player host
+ // instead of exposing the native player and appearing to switch streams.
+ const playerMountWatchdog = setInterval(() => {
+ if (wrapper.isConnected && targetContainer.isConnected) return;
+ const nextContainer = findStablePlayerContainer();
+ if (!nextContainer) return;
+ const previous = targetContainer;
+ targetContainer = nextContainer;
+ targetContainer.style.position = 'relative';
+ targetContainer.classList.add('stream-container-mod');
+ if (hideUntilHover) targetContainer.classList.add('stream-hide-ui');
+ bindPlayerContainer(targetContainer);
+ targetContainer.appendChild(wrapper);
+ dbg('player:wrapper-reattached', { previousConnected: previous?.isConnected || false });
+ }, 250);
+
  // Warm metadata and decode thumbnails during idle time so hover performs no
  // network or image-decoding work on the interaction frame.
  warmButtonPreviews();
@@ -879,6 +935,48 @@ margin-left: 2px !important;
  } catch (error) { dbg('watch-cache:save-error', { error: String(error) }); }
  };
  const bOfflineTimers = new Map(); // username → pending offline timeout
+ const bPresenceUsers = new Map();
+ const expandedPresenceGroups = new Set();
+ const presencePanel = document.createElement('div'); presencePanel.className = 'bajsas-presence-panel';
+ const presenceButton = document.createElement('button'); presenceButton.className = 'custom-stream-btn bajsas-presence-toggle'; presenceButton.textContent = '👥 Online 0'; presenceButton.title = 'Show online BajSAS users';
+ const renderPresence = () => {
+   const users = [...bPresenceUsers.values()].filter(user => user.online);
+   presenceButton.textContent = `👥 Online ${users.length}`;
+   presencePanel.replaceChildren();
+   if (!users.length) { const empty=document.createElement('div'); empty.className='bajsas-presence-empty'; empty.textContent='No online users'; presencePanel.appendChild(empty); return; }
+   const groups = new Map();
+   for (const user of users) {
+     const channel = String(user.watching || 'Not watching').trim() || 'Not watching';
+     const key = channel.toLowerCase();
+     if (!groups.has(key)) groups.set(key, { key, channel, users:[] });
+     groups.get(key).users.push(user);
+   }
+   const sortedGroups = [...groups.values()].sort((a,b) => b.users.length - a.users.length || a.channel.localeCompare(b.channel));
+   for (const group of sortedGroups) {
+     group.users.sort((a,b) => a.username.localeCompare(b.username));
+     const section=document.createElement('details'); section.className='bajsas-presence-group'; section.open=expandedPresenceGroups.has(group.key);
+     section.addEventListener('toggle',()=>{if(section.open)expandedPresenceGroups.add(group.key);else expandedPresenceGroups.delete(group.key)});
+     const header=document.createElement('summary'); header.className='bajsas-presence-channel';
+     const channel=document.createElement('span'); channel.className='bajsas-presence-channel-name'; channel.textContent=group.channel; channel.title=group.channel;
+     const count=document.createElement('span'); count.className='bajsas-presence-count'; count.textContent=String(group.users.length);
+     header.append(channel,count); section.appendChild(header);
+     const userList=document.createElement('div'); userList.className='bajsas-presence-users';
+     for (const user of group.users) {
+       const row=document.createElement('div'); row.className='bajsas-presence-row';
+       const status=document.createElement('span'); status.title='Online'; const dot=document.createElement('i'); dot.className='bajsas-presence-dot'; status.appendChild(dot);
+       const name=document.createElement('span'); name.className='bajsas-presence-user'; name.textContent=user.username;
+       row.append(status,name); userList.appendChild(row);
+     }
+     section.appendChild(userList); presencePanel.appendChild(section);
+   }
+ };
+ presenceButton.onclick = event => { event.stopPropagation(); const opened=presencePanel.classList.toggle('show'); presenceButton.classList.toggle('panel-open',opened); renderPresence(); };
+ wrapper.appendChild(presenceButton); wrapper.appendChild(presencePanel);
+ // Introduce the control on launch, then keep it subtle until the player is hovered.
+ setTimeout(() => presenceButton.classList.add('is-idle'), 7000);
+ presencePanel.addEventListener('click', event => event.stopPropagation());
+ document.addEventListener('pointerdown', event => { if (!presencePanel.classList.contains('show')) return; if (presencePanel.contains(event.target) || presenceButton.contains(event.target)) return; presencePanel.classList.remove('show'); presenceButton.classList.remove('panel-open'); }, true);
+ document.addEventListener('keydown', event => { if (event.key === 'Escape') { presencePanel.classList.remove('show'); presenceButton.classList.remove('panel-open'); } });
  let bws = null, bwsTimer = null, bchatObs = null, bObservedChatBox = null;
  let bChatRetryTimer = null;
  let bid = '';
@@ -979,9 +1077,12 @@ margin-left: 2px !important;
  }
 
      function bApplyUserSnapshot(users) {
-         bwm.clear();
+         bwm.clear(); bPresenceUsers.clear();
          for (const u of (users || [])) {
              const tw = String(u.twitchUser || '').toLowerCase();
+             const watching = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
+             const online = Boolean(u.socketConnected || (u.isOnline !== false && u.event !== 'offline' && Date.now() - (u.lastSeen || 0) < 600000));
+             if (tw) bPresenceUsers.set(tw, { username:tw, watching, online, lastSeen:u.lastSeen || 0 });
              if (u.id === bid && tw) { bSelfUser = tw; dbg('self:resolved-from-snapshot', { username: tw }); }
              const ch = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
              if (!tw || !ch || Date.now() - (u.lastSeen || 0) >= 86400000) continue;
@@ -991,6 +1092,7 @@ margin-left: 2px !important;
              }
          }
          bSaveWatchCache();
+         renderPresence();
          bRefreshAll();
          bRescanChat();
      }
@@ -1008,6 +1110,8 @@ margin-left: 2px !important;
  dbg('ws:message', { type: m.type, twitchUser: m.twitchUser || '', watching: m.watching || '', id: m.id || '' });
  if (m.type === 'connected' && Array.isArray(m.users)) {
  bApplyUserSnapshot(m.users);
+ } else if (String(m.type||'').startsWith('checkers_')) {
+ bHandleCheckers(m);
  } else if (m.type === 'force_watch' && m.channel) {
  const target = String(m.target || 'all').toLowerCase();
  const me = bGetUser();
@@ -1015,7 +1119,7 @@ margin-left: 2px !important;
  if (!applies) return;
  const channel = String(m.channel).trim();
  const native = channel.toLowerCase() === 'twitch'
- ? [...document.querySelectorAll('.custom-stream-btn')].find(btn => !btn.dataset.streamUrl)
+ ? [...btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]')].find(btn => !btn.dataset.streamUrl)
  : null;
  const found = native || bFindOverlayBtn(channel);
  if (found) {
@@ -1029,6 +1133,8 @@ margin-left: 2px !important;
  if (m.id === bid) { bSelfUser = k; dbg('self:resolved-from-update', { username: k }); }
  const ch = m.watching || (m.event || '').replace('watch:', '');
  const incomingTime = m.lastSeen || Date.now();
+ bPresenceUsers.set(k, { username:k, watching:ch, online:m.isOnline !== false, lastSeen:incomingTime });
+ renderPresence();
  const current = bwm.get(k);
  // A pagehide/offline event from the old stream can arrive immediately before
  // the new watch event. Cancel its pending removal and reject stale updates.
@@ -1042,6 +1148,7 @@ margin-left: 2px !important;
  } else if (m.type === 'user_offline') {
  const k = (m.twitchUser || '').toLowerCase();
  if (k) {
+ const presence = bPresenceUsers.get(k); if (presence) { presence.online=false; bPresenceUsers.set(k,presence); renderPresence(); }
  const snapshotTime = bwm.get(k)?.lastSeen || 0;
  clearTimeout(bOfflineTimers.get(k));
  const timer = setTimeout(() => {
@@ -1063,6 +1170,59 @@ margin-left: 2px !important;
              bws.onerror = () => { dbg('ws:error'); try { bws.close(); } catch {} };
          } catch {}
      }
+
+     let bGame={id:'',board:[],turn:'red',red:'',black:'',status:'idle',selected:-1,redMs:300000,blackMs:300000,turnStartedAt:0};
+     let bGameAudioEnabled=localStorage.getItem('bajsas_game_audio')!=='0',bGameAudioCtx=null;
+     const bGameTone=(kind='move')=>{if(!bGameAudioEnabled)return;try{bGameAudioCtx||=new (window.AudioContext||window.webkitAudioContext)();const o=bGameAudioCtx.createOscillator(),g=bGameAudioCtx.createGain(),now=bGameAudioCtx.currentTime;const spec={ui:[520,.035],move:[420,.055],capture:[220,.11],start:[660,.14],end:[150,.3],invite:[820,.12]}[kind]||[420,.06];o.frequency.setValueAtTime(spec[0],now);if(kind==='start')o.frequency.exponentialRampToValueAtTime(990,now+spec[1]);g.gain.setValueAtTime(.07,now);g.gain.exponentialRampToValueAtTime(.001,now+spec[1]);o.connect(g).connect(bGameAudioCtx.destination);o.start(now);o.stop(now+spec[1])}catch{}};
+     const bGameModal=document.createElement('div');bGameModal.className='bajsas-game-modal';bGameModal.innerHTML='<div class="bajsas-game-window"><div class="bajsas-game-head"><b>⚫ BajSAS Checkers</b><span data-game-side style="font-weight:800;color:#ffd58a">Lobby</span><div style="display:flex;gap:5px"><button class="custom-stream-btn bajsas-game-resize" data-game-resize title="Drag to resize">⤡</button><button class="custom-stream-btn" data-game-close>✕</button></div></div><div class="bajsas-game-controls"><input data-room-name placeholder="Room name" maxlength="32" style="flex:1;min-width:100px;background:#211d18;color:#fff;border:1px solid #8b7759;padding:5px"><select data-room-time title="Time per player"><option value="1">1 min</option><option value="3">3 min</option><option value="5" selected>5 min</option><option value="10">10 min</option><option value="15">15 min</option></select><button class="custom-stream-btn" data-room-create>Create</button><button class="custom-stream-btn bajsas-hidden" data-room-cancel>Cancel Room</button><button class="custom-stream-btn" data-game-audio title="Toggle game sounds">🔊</button><button class="custom-stream-btn" data-room-refresh>↻</button><button class="custom-stream-btn" data-game-back style="display:none">← Lobby</button><span data-game-status>Lobby</span></div><div class="bajsas-lobby" data-room-list><div class="bajsas-lobby-empty">No public rooms yet.<br>Create one to start playing.</div></div><div data-game-play style="display:none"><div class="bajsas-game-board" data-game-board></div><div class="bajsas-game-score"><div class="bajsas-game-player"><div data-red-name>Red</div><div class="bajsas-game-clock" data-red-clock>5:00</div><small data-red-count>12 pieces</small></div><b>VS</b><div class="bajsas-game-player"><div data-black-name>Black</div><div class="bajsas-game-clock" data-black-clock>5:00</div><small data-black-count>12 pieces</small></div></div><div class="bajsas-game-actions"><button class="custom-stream-btn" data-game-draw>Offer Draw</button><button class="custom-stream-btn" data-game-resign>Resign</button><button class="custom-stream-btn" data-room-close>Close Game</button></div></div></div>';targetContainer.appendChild(bGameModal);
+     // The floating panel resizes independently and never changes Twitch's
+     // video layout. Persist the user's preferred dimensions per browser.
+     try {
+         const savedSize = JSON.parse(localStorage.getItem('bajsas_game_size') || 'null');
+         if (savedSize?.width) bGameModal.style.width = Math.max(250, Math.min(520, savedSize.width)) + 'px';
+     } catch {}
+     const resizeHandle = bGameModal.querySelector('[data-game-resize]');
+     resizeHandle.addEventListener('pointerdown', event => {
+         event.preventDefault();
+         resizeHandle.setPointerCapture(event.pointerId);
+         const startX = event.clientX;
+         const startWidth = bGameModal.getBoundingClientRect().width;
+         const onMove = move => {
+             // The panel is anchored on the right, so dragging left increases it.
+             const max = Math.min(520, innerWidth * .75);
+             const width = Math.max(250, Math.min(max, startWidth + (startX - move.clientX)));
+             bGameModal.style.width = Math.round(width) + 'px';
+         };
+         const onEnd = end => {
+             resizeHandle.releasePointerCapture?.(end.pointerId);
+             resizeHandle.removeEventListener('pointermove', onMove);
+             resizeHandle.removeEventListener('pointerup', onEnd);
+             resizeHandle.removeEventListener('pointercancel', onEnd);
+             const width = Math.round(bGameModal.getBoundingClientRect().width);
+             localStorage.setItem('bajsas_game_size', JSON.stringify({ width }));
+             dbg('game:resized', { width, aspect: 'board 1:1' });
+         };
+         resizeHandle.addEventListener('pointermove', onMove);
+         resizeHandle.addEventListener('pointerup', onEnd);
+         resizeHandle.addEventListener('pointercancel', onEnd);
+     });
+     const bGameBoard=bGameModal.querySelector('[data-game-board]'),bGameStatus=bGameModal.querySelector('[data-game-status]'),bRoomList=bGameModal.querySelector('[data-room-list]'),bGamePlay=bGameModal.querySelector('[data-game-play]'),bGameBack=bGameModal.querySelector('[data-game-back]'),bRoomCancel=bGameModal.querySelector('[data-room-cancel]');
+     bGamePlay.style.position='relative';bGamePlay.prepend(resizeHandle);
+     let bLobbyRooms=[];
+     function bGameSend(x){if(bws?.readyState===1)bws.send(JSON.stringify(x));else dbg('game:ws-not-open');}
+     function bLeaveGame(){if(bGame.id)bGameSend({type:'checkers_leave_room',gameId:bGame.id});bGame={id:'',board:[],turn:'red',red:'',black:'',status:'idle',selected:-1,redMs:300000,blackMs:300000,turnStartedAt:0};}
+     const bRoomSetupControls=['[data-room-name]','[data-room-time]','[data-room-create]','[data-room-refresh]'].map(s=>bGameModal.querySelector(s));
+     function bShowLobby(){bRoomCancel.classList.add('bajsas-hidden');bGameModal.classList.add('lobby-mode');bGameModal.querySelector('[data-game-side]').textContent='Lobby';bGamePlay.style.display='none';bGamePlay.classList.add('bajsas-hidden');bRoomList.style.display='block';bRoomList.classList.remove('bajsas-hidden');bGameBack.style.display='flex';bGameBack.classList.add('bajsas-hidden');for(const el of bRoomSetupControls)el?.classList.remove('bajsas-hidden');bGameStatus.textContent='Public Lobby';bGameSend({type:'checkers_lobby_list'});}
+     function bShowBoard(){bRoomCancel.classList.add('bajsas-hidden');bGameModal.classList.remove('lobby-mode');bRoomList.classList.add('bajsas-hidden');bGamePlay.style.display='block';bGamePlay.classList.remove('bajsas-hidden');bGameBack.style.display='flex';bGameBack.classList.remove('bajsas-hidden');for(const el of bRoomSetupControls)el?.classList.add('bajsas-hidden');bRenderGame();}
+     function bOpenGame(){bGameModal.classList.add('show');bShowLobby();}
+     function bRenderLobby(){bRoomList.replaceChildren();const hosted=bLobbyRooms.find(r=>r.host===bGetUser()&&r.status==='open');bRoomCancel.classList.toggle('bajsas-hidden',!hosted);bRoomCancel.dataset.gameId=hosted?.gameId||'';if(!bLobbyRooms.length){const empty=document.createElement('div');empty.className='bajsas-lobby-empty';empty.innerHTML='No public rooms yet.<br>Create one to start playing.';bRoomList.appendChild(empty);return;}for(const r of bLobbyRooms){const card=document.createElement('div');card.className='bajsas-room-card';const top=document.createElement('div');top.className='bajsas-room-top';const name=document.createElement('span');name.textContent=r.roomName;const cost=document.createElement('span');cost.textContent=(r.timeControlMin||5)+' min';top.append(name,cost);const meta=document.createElement('div');meta.className='bajsas-room-meta';meta.textContent=`Host: ${r.host}${r.opponent?' • vs '+r.opponent:''} • ${r.status} • ${r.spectators} watching`;const actions=document.createElement('div');actions.className='bajsas-room-actions';if(r.status==='open'&&r.host!==bGetUser()){const join=document.createElement('button');join.className='bajsas-room-join';join.textContent='Join';join.onclick=()=>{bGameStatus.textContent='Joining '+r.roomName+'…';bGameSend({type:'checkers_join_room',gameId:r.gameId});};actions.appendChild(join)}const watch=document.createElement('button');watch.className='bajsas-room-watch';watch.textContent='Watch';watch.onclick=()=>bGameSend({type:'checkers_spectate',gameId:r.gameId});actions.appendChild(watch);card.append(top,meta,actions);bRoomList.appendChild(card)}}
+     const bFmtClock=ms=>`${Math.max(0,ms)/60000|0}:${String(Math.max(0,ms)/1000%60|0).padStart(2,'0')}`;
+     function bClientLegalMoves(board,side,forcedFrom=null){const dirs=p=>p.king?[[-1,-1],[-1,1],[1,-1],[1,1]]:p.side==='red'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]];const pieceMoves=(from,capturesOnly=false)=>{const p=board[from];if(!p)return[];const r=from>>3,c=from&7,caps=[],steps=[];for(const[dR,dC]of dirs(p)){const r1=r+dR,c1=c+dC;if(r1<0||r1>7||c1<0||c1>7)continue;const one=r1*8+c1;if(!board[one]){if(!capturesOnly)steps.push({from,to:one,capture:null});continue}if(board[one].side===p.side)continue;const r2=r+dR*2,c2=c+dC*2;if(r2>=0&&r2<8&&c2>=0&&c2<8&&!board[r2*8+c2])caps.push({from,to:r2*8+c2,capture:one})}return caps.length?caps:(capturesOnly?[]:steps)};if(forcedFrom!=null)return pieceMoves(forcedFrom,true);const caps=[],steps=[];for(let n=0;n<64;n++)if(board[n]?.side===side)for(const m of pieceMoves(n))(m.capture==null?steps:caps).push(m);return caps.length?caps:steps}
+     function bRenderGame(){bGameBoard.innerHTML='';const me=bGetUser(),mySide=me===bGame.red?'red':me===bGame.black?'black':'spectator',legal=mySide!=='spectator'&&bGame.turn===mySide?bClientLegalMoves(bGame.board,mySide,bGame.forcedFrom):[],selectable=new Set(legal.map(m=>m.from)),destinations=new Set(legal.filter(m=>m.from===bGame.selected).map(m=>m.to)),captureRequired=legal.some(m=>m.capture!=null);bGameModal.querySelector('[data-game-side]').textContent=mySide==='spectator'?'Spectating':'You are '+mySide.toUpperCase();bGameModal.querySelector('[data-room-close]').classList.toggle('bajsas-hidden',mySide!=='red');bGameModal.querySelector('[data-game-resign]').classList.toggle('bajsas-hidden',mySide==='spectator');bGameModal.querySelector('[data-game-draw]').classList.toggle('bajsas-hidden',mySide==='spectator');for(let visual=0;visual<64;visual++){const n=mySide==='black'?63-visual:visual;const c=document.createElement('button');c.className='bajsas-game-cell '+((((n>>3)+(n&7))%2)?'dark':'light')+(bGame.selected===n?' selected':'')+(selectable.has(n)?' selectable':'')+(destinations.has(n)?' legal':'')+(bGame.lastMove&&(bGame.lastMove.from===n||bGame.lastMove.to===n)?' last-move':'');const p=bGame.board[n];if(p){const q=document.createElement('span');q.className='bajsas-piece '+p.side+(p.king?' king':'');c.appendChild(q)}c.onclick=()=>{if(!bGame.id||bGame.status!=='playing'||mySide==='spectator'||bGame.turn!==mySide)return;if(bGame.selected<0){if(selectable.has(n))bGame.selected=n}else if(selectable.has(n)){bGame.selected=n}else if(destinations.has(n)){bGameSend({type:'checkers_move',gameId:bGame.id,from:bGame.selected,to:n});bGame.selected=-1}else bGame.selected=-1;bRenderGame()};bGameBoard.appendChild(c)}const elapsed=bGame.status==='playing'?Date.now()-(bGame.turnStartedAt||Date.now()):0;const redMs=bGame.redMs-(bGame.turn==='red'?elapsed:0),blackMs=bGame.blackMs-(bGame.turn==='black'?elapsed:0);const redName=bGameModal.querySelector('[data-red-name]'),blackName=bGameModal.querySelector('[data-black-name]');redName.textContent=bGame.red||'Red';blackName.textContent=bGame.black||'Black';redName.parentElement.classList.toggle('active',bGame.status==='playing'&&bGame.turn==='red');blackName.parentElement.classList.toggle('active',bGame.status==='playing'&&bGame.turn==='black');redName.parentElement.classList.toggle('me',mySide==='red');blackName.parentElement.classList.toggle('me',mySide==='black');bGameModal.querySelector('[data-red-clock]').textContent=bFmtClock(redMs);bGameModal.querySelector('[data-black-clock]').textContent=bFmtClock(blackMs);bGameModal.querySelector('[data-red-count]').textContent=bGame.board.filter(x=>x?.side==='red').length+' pieces';bGameModal.querySelector('[data-black-count]').textContent=bGame.board.filter(x=>x?.side==='black').length+' pieces';const reconnecting=(bGame.reconnecting||[]).length?' • Reconnecting: '+bGame.reconnecting.join(', '):'';bGameStatus.textContent=bGame.status==='playing'?'Turn: '+bGame.turn+(captureRequired?' • Capture required':'')+reconnecting:bGame.status+(bGame.winner?' • Winner: '+bGame.winner:'')+(bGame.winReason?' • '+String(bGame.winReason).replaceAll('_',' '):'');}
+     setInterval(()=>{if(bGameModal.classList.contains('show')&&bGame.status==='playing')bRenderGame()},1000);
+     function bHandleCheckers(m){dbg('game:event',m);if(m.type==='checkers_error'){bGameStatus.textContent='Error: '+String(m.error||'unknown').replaceAll('_',' ');dbg('game:error',m);}else if(m.type==='checkers_lobby'){bLobbyRooms=m.rooms||[];bRenderLobby();}else if(m.type==='checkers_room_closed'){bGame={...bGame,id:'',status:'room closed'};bRenderGame();}else if(m.type==='checkers_invite'){bGameTone('invite');if(confirm(`${m.from} invited you to checkers. Accept?`)){bGame.id=m.gameId;bGameSend({type:'checkers_accept',gameId:m.gameId});bGameModal.classList.add('show')}else bGameSend({type:'checkers_decline',gameId:m.gameId})}else if(m.type==='checkers_state'){if(!Array.isArray(m.board)||m.board.length!==64){bGameStatus.textContent='Invalid board state';dbg('game:invalid-state',m);return;}const previous=bGame,oldPieces=(previous.board||[]).filter(Boolean).length,newPieces=m.board.filter(Boolean).length;bGame={...bGame,...m,id:m.gameId,selected:m.forcedFrom??-1};if(previous.status!=='playing'&&m.status==='playing')bGameTone('start');else if(m.status==='finished'&&previous.status!=='finished')bGameTone('end');else if(newPieces<oldPieces)bGameTone('capture');else if(previous.turn&&previous.turn!==m.turn)bGameTone('move');bGameModal.classList.add('show');if(m.status==='open')bShowLobby();else bShowBoard()}else if(m.type==='checkers_draw_offer'){if(confirm(`${m.from} offers a draw. Accept?`))bGameSend({type:'checkers_draw_accept',gameId:m.gameId});else bGameSend({type:'checkers_draw_decline',gameId:m.gameId})}else if(m.type==='checkers_declined'){bGameStatus.textContent='Invitation declined'}else if(m.type==='checkers_draw_declined'){bGameStatus.textContent='Draw declined'}}
+     bGameModal.addEventListener('click',e=>{if(e.target.closest('button,select,input'))bGameTone('ui')},true);bGameModal.querySelector('[data-game-close]').onclick=()=>{bLeaveGame();bGameModal.classList.remove('show')};bGameModal.querySelector('[data-game-audio]').onclick=e=>{bGameAudioEnabled=!bGameAudioEnabled;localStorage.setItem('bajsas_game_audio',bGameAudioEnabled?'1':'0');e.currentTarget.textContent=bGameAudioEnabled?'🔊':'🔇';if(bGameAudioEnabled)bGameTone('start')};bGameModal.querySelector('[data-game-audio]').textContent=bGameAudioEnabled?'🔊':'🔇';bGameModal.querySelector('[data-room-create]').onclick=()=>bGameSend({type:'checkers_create_room',roomName:bGameModal.querySelector('[data-room-name]').value||`${bGetUser()}'s room`,timeControlMin:Number(bGameModal.querySelector('[data-room-time]').value)});bRoomCancel.onclick=()=>{const gameId=bRoomCancel.dataset.gameId||bGame.id;if(gameId&&confirm('Cancel this open room?')){bGameSend({type:'checkers_close_room',gameId});bRoomCancel.classList.add('bajsas-hidden');bGame={...bGame,id:'',status:'idle'}}};bGameModal.querySelector('[data-room-refresh]').onclick=()=>bGameSend({type:'checkers_lobby_list'});bGameBack.onclick=()=>{bLeaveGame();bShowLobby()};bGameModal.querySelector('[data-game-resign]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_resign',gameId:bGame.id})};bGameModal.querySelector('[data-game-draw]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_draw',gameId:bGame.id})};bGameModal.querySelector('[data-room-close]').onclick=()=>{if(bGame.id&&confirm('Close this room?'))bGameSend({type:'checkers_close_room',gameId:bGame.id})};
+     const gameBtn=document.createElement('button');gameBtn.className='custom-stream-btn';gameBtn.textContent='🎮 Checkers';gameBtn.title='Play multiplayer checkers';gameBtn.onclick=bOpenGame;btnRow.appendChild(gameBtn);
 
      function bPing(ev) {
          try {
@@ -1450,7 +1610,7 @@ margin-left: 2px !important;
 
      // Hook into stream selector buttons — same as old app handleNavigation
      function bHookButtons() {
-         document.querySelectorAll('.custom-stream-btn').forEach(btn => {
+         btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]').forEach(btn => {
              btn.addEventListener('click', () => {
                  if (btn.dataset.streamUrl) {
                      // Use the button display name (first field before ; in channel list)
