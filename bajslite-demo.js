@@ -9,7 +9,7 @@ javascript:(async function(){
 
  const listUrl = "https://gist.githubusercontent.com/BestestCreature/53b495e6b30595283967c4817e33cfc0/raw/";
  const WORKER_BASE_URL = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
- const APP_VERSION = 'lite 6.13-control-isolation-fix';
+ const APP_VERSION = 'lite 6.20';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -166,6 +166,30 @@ margin-left: 2px !important;
  .bajsas-offline-platform { z-index:1; color:#adadb8; font-size:10px; }
  .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
  .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
+ .bajsas-presence-toggle { position:absolute!important; top:12px; right:12px; z-index:30; pointer-events:auto!important; opacity:1; transform:translate3d(0,0,0); transition:opacity .2s ease,transform .2s ease; background:rgba(20,20,24,.82)!important; border:1px solid rgba(255,255,255,.16)!important; box-shadow:0 5px 18px rgba(0,0,0,.38); }
+ .bajsas-presence-toggle.is-idle { opacity:0; transform:translate3d(0,-5px,0); pointer-events:none!important; }
+ .stream-container-mod:hover .bajsas-presence-toggle.is-idle,.bajsas-presence-toggle.panel-open { opacity:.88; transform:translate3d(0,0,0); pointer-events:auto!important; }
+ .bajsas-presence-toggle:hover { opacity:1!important; }
+ .bajsas-presence-panel { display:none; position:absolute; top:48px; right:12px; z-index:29; pointer-events:auto; width:min(290px,62vw); max-height:min(360px,65vh); overflow:auto; background:rgba(14,14,18,.94); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.16); border-radius:7px; box-shadow:0 16px 40px rgba(0,0,0,.6); }
+ .bajsas-presence-panel.show { display:block; animation:bajPresenceIn .14s ease-out; }
+ @keyframes bajPresenceIn { from { opacity:0; transform:translate3d(8px,-6px,0) scale(.98); } to { opacity:1; transform:none; } }
+ @media (max-width:600px) { .bajsas-presence-toggle{top:8px;right:8px}.bajsas-presence-panel{top:44px;right:6px;width:min(290px,calc(100% - 12px))} }
+ .bajsas-presence-group { border-top:1px solid rgba(255,255,255,.1); }
+ .bajsas-presence-group:first-child { border-top:0; }
+ .bajsas-presence-group > summary { list-style:none; }
+ .bajsas-presence-group > summary::-webkit-details-marker { display:none; }
+ .bajsas-presence-channel { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 9px; background:#26262c; color:#efeff1; font-size:11px; font-weight:800; cursor:pointer; user-select:none; }
+ .bajsas-presence-channel:hover { background:#303038; }
+ .bajsas-presence-channel-name::before { content:'▸'; display:inline-block; width:14px; color:#adadb8; }
+ .bajsas-presence-group[open] .bajsas-presence-channel-name::before { content:'▾'; }
+ .bajsas-presence-count { min-width:22px; padding:1px 7px; border-radius:999px; text-align:center; color:#d8c7ff; background:rgba(145,71,255,.22); border:1px solid rgba(191,148,255,.28); }
+ .bajsas-presence-users { display:flex; flex-wrap:wrap; gap:5px; padding:7px 8px 9px; background:rgba(0,0,0,.16); }
+ .bajsas-presence-row { display:inline-flex; align-items:center; gap:4px; max-width:100%; padding:3px 7px; border:1px solid rgba(255,255,255,.1); border-radius:999px; background:rgba(255,255,255,.055); font-size:10px; }
+ .bajsas-presence-user { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ .bajsas-presence-dot { width:6px; height:6px; margin-right:1px; }
+ .bajsas-presence-dot { display:inline-block; width:7px; height:7px; margin-right:5px; border-radius:50%; background:#00c853; box-shadow:0 0 7px rgba(0,200,83,.7); }
+ .bajsas-presence-empty { padding:16px; text-align:center; color:#adadb8; font-size:11px; }
+ .bajsas-media{display:none;position:absolute;inset:0;z-index:2147483644;background:#0e0e10;pointer-events:auto}.bajsas-media.show{display:grid;grid-template-rows:1fr auto}.bajsas-media iframe{width:100%;height:100%;border:0}.bajsas-media-bar{display:flex;gap:6px;align-items:center;padding:8px;background:rgba(20,20,24,.96);color:#fff}.bajsas-media-bar input{flex:1;min-width:100px;background:#18181b;color:#fff;border:1px solid #555;padding:6px}.bajsas-media-queue{max-width:35%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#adadb8}
  .bajsas-game-modal{display:none;position:absolute;right:14px;bottom:86px;z-index:2147483646;pointer-events:auto;width:310px;min-width:250px;max-width:min(520px,75vw);max-height:calc(100% - 110px);overflow:auto;opacity:.94;transform:translateZ(0);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);contain:layout paint style}.bajsas-hidden{display:none!important}.bajsas-game-resize{position:absolute!important;left:-8px!important;top:-8px!important;z-index:8;cursor:nwse-resize!important;user-select:none;touch-action:none;font-size:16px!important;line-height:1!important;width:27px;height:27px;display:grid!important;place-items:center;padding:0!important;border-radius:50%!important;opacity:.82}.bajsas-game-resize:hover{opacity:1}.bajsas-game-modal.show{display:block;animation:bajGameIn .2s ease-out}.bajsas-game-modal:hover{opacity:1}.bajsas-game-modal.lobby-mode .bajsas-game-window{background-color:#2a1d14;background-image:linear-gradient(45deg,rgba(221,190,145,.09) 25%,transparent 25%,transparent 75%,rgba(221,190,145,.09) 75%),linear-gradient(45deg,rgba(221,190,145,.09) 25%,transparent 25%,transparent 75%,rgba(221,190,145,.09) 75%),linear-gradient(160deg,rgba(96,70,47,.9),rgba(42,29,20,.88));background-position:0 0,14px 14px,0 0;background-size:28px 28px,28px 28px,100% 100%;border-color:#b38b5d;color:#f8e7c3;box-shadow:0 18px 55px rgba(0,0,0,.72),inset 0 0 0 1px rgba(255,240,205,.12)}.bajsas-game-modal.lobby-mode .bajsas-game-head{border-bottom:2px groove #9c764f;padding:2px 2px 8px;color:#ffe8bd}.bajsas-game-modal.lobby-mode .custom-stream-btn{background:linear-gradient(#8a6545,#5b3e29)!important;color:#fff0d2!important;border:1px solid #b99368!important;box-shadow:inset 0 1px rgba(255,255,255,.18),0 2px 2px rgba(0,0,0,.4)}.bajsas-game-modal.lobby-mode .custom-stream-btn:hover{background:linear-gradient(#a57b54,#6d4a30)!important}.bajsas-game-modal.lobby-mode [data-room-create]{background:linear-gradient(#cf493d,#8f241f)!important;border-color:#e67c67!important}.bajsas-game-modal.lobby-mode [data-room-name],.bajsas-game-modal.lobby-mode [data-room-time]{background:#f7e6c4!important;color:#2b1c12!important;border:2px inset #c9a87a!important;border-radius:4px!important}.bajsas-game-modal.lobby-mode [data-game-status]{color:#dbc39c;font-weight:700}.bajsas-game-window{position:relative;width:100%;background:linear-gradient(rgba(81,69,55,.9),rgba(44,38,31,.88));color:#f6e6bd;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:2px solid #88765c;border-radius:7px;padding:9px;box-shadow:0 18px 55px #000}.bajsas-game-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.bajsas-game-board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:calc(100% - 20px);max-width:420px;aspect-ratio:1;margin:0 auto;container-type:inline-size;border:3px ridge rgba(154,129,93,.82);background:rgba(40,29,20,.5);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:inset 0 0 18px rgba(0,0,0,.62),0 7px 18px rgba(0,0,0,.38);transform:translateZ(0);overflow:hidden}.bajsas-game-cell{display:grid;place-items:center;border:0;padding:0;min-width:0;min-height:0;overflow:hidden}.bajsas-game-cell.light{background:rgba(201,181,141,.5)}.bajsas-game-cell.dark{background:rgba(114,84,61,.5)}.bajsas-piece{position:relative;display:grid;place-items:center;width:72%;height:auto;aspect-ratio:1;border-radius:50%;box-sizing:border-box;box-shadow:inset 0 0 0 3px rgba(255,255,255,.18),0 3px 5px #000}.bajsas-piece.red{background:#d9382f}.bajsas-piece.black{background:#151515}.bajsas-piece.king:after{content:'★';position:absolute;inset:0;display:grid;place-items:center;color:#ffd54f;font-size:clamp(11px,4.5cqi,18px);line-height:1;pointer-events:none}.bajsas-game-cell.selected{outline:4px solid #69f0ae;outline-offset:-4px}.bajsas-game-cell.legal{box-shadow:inset 0 0 0 5px rgba(255,213,79,.78)}.bajsas-game-cell.selectable .bajsas-piece{filter:drop-shadow(0 0 5px #fff1a8)}.bajsas-game-controls{display:flex;gap:6px;align-items:center;margin-bottom:7px;flex-wrap:wrap}.bajsas-game-controls select{background:#211d18;color:#fff;border:1px solid #8b7759;padding:5px}.bajsas-lobby{background:rgba(30,20,13,.82);border:2px inset #8d6947;padding:8px;border-radius:5px;max-height:310px;overflow:auto;scrollbar-color:#8d6947 #2a1d14}.bajsas-room-card{position:relative;background:linear-gradient(90deg,#f5e4c2,#dcc096);color:#2b211a;border:2px solid #8b6745;border-radius:6px;padding:9px 9px 9px 42px;margin-bottom:8px;box-shadow:0 3px 0 #160e09,inset 0 0 0 1px #fff4dc}.bajsas-room-card:before{content:"";position:absolute;left:9px;top:10px;width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff6b62,#b51f1a 65%,#6d0e0b);box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 2px rgba(0,0,0,.45)}.bajsas-room-card:nth-child(even):before{background:radial-gradient(circle at 35% 30%,#555,#151515 65%,#000)}.bajsas-room-top{display:flex;justify-content:space-between;gap:8px;font-weight:900}.bajsas-room-top span:last-child{background:#2b211a;color:#f8d989;border-radius:99px;padding:2px 7px;font-size:10px}.bajsas-room-meta{font-size:10px;color:#715f49;margin:5px 0 7px}.bajsas-room-actions{display:flex;gap:5px;justify-content:flex-end}.bajsas-room-actions button{border:1px solid #5e4933;border-radius:5px;padding:4px 12px;font-weight:900;cursor:pointer;box-shadow:0 2px 0 #3d2c1e}.bajsas-room-join{background:#c9332d;color:#fff}.bajsas-room-watch{background:#27211d;color:#f7e7c1}.bajsas-lobby-empty{text-align:center;padding:30px 8px;color:#ddc79d}.bajsas-game-score{display:grid;grid-template-columns:1fr auto 1fr;gap:7px;align-items:center;margin:7px 0;text-align:center}.bajsas-game-player{background:rgba(0,0,0,.25);padding:5px;border:1px solid #76644c}.bajsas-game-clock{font:bold 16px monospace;color:#fff}.bajsas-game-actions{display:flex;justify-content:center;gap:6px;margin-top:8px;flex-wrap:wrap}.bajsas-game-head>b{font-size:13px;letter-spacing:.025em;text-shadow:0 1px 2px #000}.bajsas-game-head [data-game-side]{background:rgba(0,0,0,.26);border:1px solid rgba(255,222,160,.25);padding:3px 7px;border-radius:99px;font-size:10px}.bajsas-game-cell{position:relative;transition:filter .12s,transform .12s}.bajsas-game-cell:hover{filter:brightness(1.08)}.bajsas-game-cell.last-move{box-shadow:inset 0 0 0 3px rgba(88,184,255,.58)}.bajsas-game-cell.legal{box-shadow:none}.bajsas-game-cell.legal:after{content:"";position:absolute;width:25%;height:25%;border-radius:50%;background:rgba(255,222,82,.88);box-shadow:0 0 0 3px rgba(59,35,15,.3),0 0 12px rgba(255,222,82,.75)}.bajsas-piece{transition:transform .14s,filter .14s}.bajsas-game-cell.selectable:hover .bajsas-piece{transform:translateY(-2px) scale(1.04)}.bajsas-piece.red{background:radial-gradient(circle at 35% 28%,#ff766d,#cf302a 48%,#7e1512 78%)}.bajsas-piece.black{background:radial-gradient(circle at 35% 28%,#686868,#242424 48%,#050505 80%)}.bajsas-game-player{transition:border-color .15s,box-shadow .15s,background .15s}.bajsas-game-player.active{border-color:#ffd45e;background:rgba(255,204,64,.1);box-shadow:0 0 0 1px rgba(255,212,94,.28),0 0 14px rgba(255,191,52,.18)}.bajsas-game-player.me{outline:1px solid rgba(105,240,174,.48);outline-offset:1px}.bajsas-game-controls [data-game-status]{display:inline-block;padding:3px 7px;border-radius:99px;background:rgba(0,0,0,.24);font-size:10px}.bajsas-game-resize:hover{color:#ffe082!important;transform:scale(1.08)}@media(prefers-reduced-motion:reduce){.bajsas-game-modal.show{animation:none}.bajsas-game-cell,.bajsas-piece{transition:none}}@keyframes bajGameIn{from{opacity:0;transform:translate3d(16px,10px,0) scale(.96)}to{opacity:1;transform:none}}@media(max-width:800px){.bajsas-game-modal{width:290px;min-width:230px;max-width:88vw;right:8px;bottom:72px}.bajsas-game-board{width:calc(100% - 16px)}}
  `;
  document.head.appendChild(s);
@@ -912,6 +936,54 @@ margin-left: 2px !important;
  } catch (error) { dbg('watch-cache:save-error', { error: String(error) }); }
  };
  const bOfflineTimers = new Map(); // username → pending offline timeout
+ const bPresenceUsers = new Map();
+ const expandedPresenceGroups = new Set();
+ const presencePanel = document.createElement('div'); presencePanel.className = 'bajsas-presence-panel';
+ const presenceButton = document.createElement('button'); presenceButton.className = 'custom-stream-btn bajsas-presence-toggle'; presenceButton.textContent = '👥 Online 0'; presenceButton.title = 'Show online BajSAS users';
+ const renderPresence = () => {
+   const users = [...bPresenceUsers.values()].filter(user => user.online);
+   presenceButton.textContent = `👥 Online ${users.length}`;
+   presencePanel.replaceChildren();
+   if (!users.length) { const empty=document.createElement('div'); empty.className='bajsas-presence-empty'; empty.textContent='No online users'; presencePanel.appendChild(empty); return; }
+   const groups = new Map();
+   for (const user of users) {
+     const channel = String(user.watching || 'Not watching').trim() || 'Not watching';
+     const key = channel.toLowerCase();
+     if (!groups.has(key)) groups.set(key, { key, channel, users:[] });
+     groups.get(key).users.push(user);
+   }
+   const sortedGroups = [...groups.values()].sort((a,b) => b.users.length - a.users.length || a.channel.localeCompare(b.channel));
+   for (const group of sortedGroups) {
+     group.users.sort((a,b) => a.username.localeCompare(b.username));
+     const section=document.createElement('details'); section.className='bajsas-presence-group'; section.open=expandedPresenceGroups.has(group.key);
+     section.addEventListener('toggle',()=>{if(section.open)expandedPresenceGroups.add(group.key);else expandedPresenceGroups.delete(group.key)});
+     const header=document.createElement('summary'); header.className='bajsas-presence-channel';
+     const channel=document.createElement('span'); channel.className='bajsas-presence-channel-name'; channel.textContent=group.channel; channel.title=group.channel;
+     const count=document.createElement('span'); count.className='bajsas-presence-count'; count.textContent=String(group.users.length);
+     header.append(channel,count); section.appendChild(header);
+     const userList=document.createElement('div'); userList.className='bajsas-presence-users';
+     for (const user of group.users) {
+       const row=document.createElement('div'); row.className='bajsas-presence-row';
+       const status=document.createElement('span'); status.title='Online'; const dot=document.createElement('i'); dot.className='bajsas-presence-dot'; status.appendChild(dot);
+       const name=document.createElement('span'); name.className='bajsas-presence-user'; name.textContent=user.username;
+       row.append(status,name); userList.appendChild(row);
+     }
+     section.appendChild(userList); presencePanel.appendChild(section);
+   }
+ };
+ presenceButton.onclick = event => { event.stopPropagation(); const opened=presencePanel.classList.toggle('show'); presenceButton.classList.toggle('panel-open',opened); renderPresence(); };
+ wrapper.appendChild(presenceButton); wrapper.appendChild(presencePanel);
+ // Introduce the control on launch, then keep it subtle until the player is hovered.
+ setTimeout(() => presenceButton.classList.add('is-idle'), 7000);
+ presencePanel.addEventListener('click', event => event.stopPropagation());
+ document.addEventListener('pointerdown', event => { if (!presencePanel.classList.contains('show')) return; if (presencePanel.contains(event.target) || presenceButton.contains(event.target)) return; presencePanel.classList.remove('show'); presenceButton.classList.remove('panel-open'); }, true);
+ document.addEventListener('keydown', event => { if (event.key === 'Escape') { presencePanel.classList.remove('show'); presenceButton.classList.remove('panel-open'); } });
+ const mediaPanel=document.createElement('div');mediaPanel.className='bajsas-media';mediaPanel.innerHTML='<iframe allow="autoplay; fullscreen"></iframe><div class="bajsas-media-bar"><input placeholder="IMDb/TMDB ID, tv ID season episode, or VidFast URL"><button class="custom-stream-btn" data-media-add>Request</button><button class="custom-stream-btn" data-media-vote>Vote Skip</button><span class="bajsas-media-queue" data-media-status>No media</span><button class="custom-stream-btn" data-media-close>✕</button></div>';wrapper.appendChild(mediaPanel);
+ const mediaButton=document.createElement('button');mediaButton.className='custom-stream-btn';mediaButton.textContent='▶ Media';mediaButton.style.cssText='position:absolute;top:12px;right:112px;z-index:30;pointer-events:auto';wrapper.appendChild(mediaButton);
+ const mediaFrame=mediaPanel.querySelector('iframe'),mediaInput=mediaPanel.querySelector('input'),mediaStatus=mediaPanel.querySelector('[data-media-status]');let mediaCurrentId='';
+ const sendMedia=message=>{if(bws?.readyState===1)bws.send(JSON.stringify(message))};
+ const renderMedia=state=>{const cur=state.current;if(cur&&cur.id!==mediaCurrentId){mediaCurrentId=cur.id;const start=Math.max(0,Math.floor((Date.now()-cur.startedAt)/1000));mediaFrame.src=cur.type==='tv'?`https://vidfast.vc/tv/${encodeURIComponent(cur.providerId)}/${cur.season}/${cur.episode}?autoPlay=true&startAt=${start}`:`https://vidfast.vc/movie/${encodeURIComponent(cur.providerId)}?autoPlay=true&startAt=${start}`}if(!cur){mediaCurrentId='';mediaFrame.src=''}mediaStatus.textContent=cur?`${cur.title} • by ${cur.requestedBy} • ${state.votes}/${state.required} votes • ${state.queue.length} queued`:'Queue empty'};
+ mediaButton.onclick=()=>{mediaPanel.classList.add('show');sendMedia({type:'media_get'})};mediaPanel.querySelector('[data-media-close]').onclick=()=>mediaPanel.classList.remove('show');mediaPanel.querySelector('[data-media-add]').onclick=()=>{if(mediaInput.value.trim()){sendMedia({type:'media_request',query:mediaInput.value.trim()});mediaInput.value=''}};mediaPanel.querySelector('[data-media-vote]').onclick=()=>sendMedia({type:'media_vote_skip'});
  let bws = null, bwsTimer = null, bchatObs = null, bObservedChatBox = null;
  let bChatRetryTimer = null;
  let bid = '';
@@ -1012,9 +1084,12 @@ margin-left: 2px !important;
  }
 
      function bApplyUserSnapshot(users) {
-         bwm.clear();
+         bwm.clear(); bPresenceUsers.clear();
          for (const u of (users || [])) {
              const tw = String(u.twitchUser || '').toLowerCase();
+             const watching = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
+             const online = Boolean(u.socketConnected || (u.isOnline !== false && u.event !== 'offline' && Date.now() - (u.lastSeen || 0) < 600000));
+             if (tw) bPresenceUsers.set(tw, { username:tw, watching, online, lastSeen:u.lastSeen || 0 });
              if (u.id === bid && tw) { bSelfUser = tw; dbg('self:resolved-from-snapshot', { username: tw }); }
              const ch = u.watching || (u.event?.startsWith('watch:') ? u.event.slice(6) : '');
              if (!tw || !ch || Date.now() - (u.lastSeen || 0) >= 86400000) continue;
@@ -1024,6 +1099,7 @@ margin-left: 2px !important;
              }
          }
          bSaveWatchCache();
+         renderPresence();
          bRefreshAll();
          bRescanChat();
      }
@@ -1041,6 +1117,10 @@ margin-left: 2px !important;
  dbg('ws:message', { type: m.type, twitchUser: m.twitchUser || '', watching: m.watching || '', id: m.id || '' });
  if (m.type === 'connected' && Array.isArray(m.users)) {
  bApplyUserSnapshot(m.users);
+ } else if (m.type === 'media_state') {
+ renderMedia(m);
+ } else if (m.type === 'media_error') {
+ mediaStatus.textContent='Error: '+String(m.error||'unknown').replaceAll('_',' ');
  } else if (String(m.type||'').startsWith('checkers_')) {
  bHandleCheckers(m);
  } else if (m.type === 'force_watch' && m.channel) {
@@ -1064,6 +1144,8 @@ margin-left: 2px !important;
  if (m.id === bid) { bSelfUser = k; dbg('self:resolved-from-update', { username: k }); }
  const ch = m.watching || (m.event || '').replace('watch:', '');
  const incomingTime = m.lastSeen || Date.now();
+ bPresenceUsers.set(k, { username:k, watching:ch, online:m.isOnline !== false, lastSeen:incomingTime });
+ renderPresence();
  const current = bwm.get(k);
  // A pagehide/offline event from the old stream can arrive immediately before
  // the new watch event. Cancel its pending removal and reject stale updates.
@@ -1077,6 +1159,7 @@ margin-left: 2px !important;
  } else if (m.type === 'user_offline') {
  const k = (m.twitchUser || '').toLowerCase();
  if (k) {
+ const presence = bPresenceUsers.get(k); if (presence) { presence.online=false; bPresenceUsers.set(k,presence); renderPresence(); }
  const snapshotTime = bwm.get(k)?.lastSeen || 0;
  clearTimeout(bOfflineTimers.get(k));
  const timer = setTimeout(() => {
