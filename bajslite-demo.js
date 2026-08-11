@@ -1067,16 +1067,19 @@ const mediaCommand=(command,args={})=>{try{if(mediaLocalSource==='cinesrc')media
    return mediaFrame;
  };
  const extractYTIdLocal=(urlOrId)=>{ const q=String(urlOrId||'').trim(); let m; m=q.match(/(?:youtu\.be\/)([A-Za-z0-9_-]{6,20})/i); if(m) return m[1]; m=q.match(/[?&]v=([A-Za-z0-9_-]{6,20})/i); if(m) return m[1]; m=q.match(/(?:youtube\.com|youtube-nocookie\.com)\/(?:embed|live|shorts|v)\/([A-Za-z0-9_-]{6,20})/i); if(m) return m[1]; m=q.match(/^([A-Za-z0-9_-]{11})$/); if(m) return m[1]; if(/^[A-Za-z0-9_-]{6,20}$/.test(q)) return q; return ''; };
- const reportYTEnded=(session,mediaId,player)=>{
-   const emit=()=>{
-     if(session!==ytSession||mediaCurrentId!==mediaId)return;
-     let currentTime=0,duration=ytLastDuration||0;
-     try{const playerTime=Math.max(0,Number(player?.getCurrentTime?.())||0);currentTime=playerTime||ytLastTime;duration=Math.max(0,Number(player?.getDuration?.())||duration)}catch{}
-     sendMedia({type:'media_ended',mediaId,currentTime,duration});
-   };
-   emit();
-   setTimeout(emit,1500);
-   setTimeout(emit,4000);
+ const resyncYTAfterLocalEnd=(session,mediaId,player)=>{
+   if(session!==ytSession||mediaCurrentId!==mediaId)return;
+   const cur=mediaLastState?.current;
+   if(!cur)return;
+   let currentTime=ytLastTime||0,duration=ytLastDuration||0;
+   try{currentTime=Math.max(0,Number(player?.getCurrentTime?.())||currentTime);duration=Math.max(0,Number(player?.getDuration?.())||duration)}catch{}
+   const expected=Math.max(0,mediaExpectedTime(cur));
+   const globallyEnded=duration>0&&expected>=duration-2;
+   dbg('media:local-yt-ended',{mediaId,currentTime,duration,workerTime:expected,globallyEnded});
+   if(globallyEnded)return;
+   mediaSuppressUntil=Date.now()+2500;
+   try{player?.seekTo?.(expected,true)}catch{}
+   try{if(cur.playback?.playing!==false)player?.playVideo?.()}catch{}
  };
  const initYouTubePlayer=(videoId,startSec,autoplay)=>{
    const main2VisibleNow=mediaPanel.classList.contains('show')&&String(bActiveStream||'').toLowerCase().replace(/\s+/g,'')==='main2';
@@ -1142,7 +1145,7 @@ const mediaCommand=(command,args={})=>{try{if(mediaLocalSource==='cinesrc')media
              if(!active())return;
              const YTState=window.YT?.PlayerState;if(!YTState)return;
              dbg('media:yt-state',{state:e.data});
-             if(e.data===YTState.ENDED)reportYTEnded(session,expectedMediaId,e.target);
+             if(e.data===YTState.ENDED)resyncYTAfterLocalEnd(session,expectedMediaId,e.target);
              else if(e.data===YTState.PLAYING||e.data===YTState.PAUSED)sendProgress(e.target,e.data===YTState.PLAYING);
            },
            onError:(e)=>{
@@ -1170,7 +1173,7 @@ const mediaCommand=(command,args={})=>{try{if(mediaLocalSource==='cinesrc')media
  const manualYouTubeFallback=(session,expectedMediaId,expectedAttemptId,frame)=>{
    if(session!==ytSession||mediaFrame!==frame)return;
    try{ytManualCleanup?.()}catch{}
-   let endedReported=false;
+   let lastEndResyncAt=0;
    const active=()=>session===ytSession&&mediaCurrentId===expectedMediaId&&mediaFrame===frame&&frame.isConnected;
    const requestInfo=()=>{
      if(!active())return;
@@ -1188,7 +1191,15 @@ const mediaCommand=(command,args={})=>{try{if(mediaLocalSource==='cinesrc')media
      if(duration>0)ytLastDuration=duration;
      ytLastTime=time;
      if(Date.now()-mediaLastProgressSent>5000){mediaLastProgressSent=Date.now();sendMedia({type:'media_progress',mediaId:expectedMediaId,time,duration,playing:info.playerState!==2})}
-     if(info.playerState===0&&!endedReported){endedReported=true;reportYTEnded(session,expectedMediaId,{getCurrentTime:()=>time,getDuration:()=>duration})}
+     if(info.playerState===0&&Date.now()-lastEndResyncAt>1500){
+       lastEndResyncAt=Date.now();
+       resyncYTAfterLocalEnd(session,expectedMediaId,{
+         getCurrentTime:()=>time,
+         getDuration:()=>duration,
+         seekTo:value=>frame.contentWindow?.postMessage(JSON.stringify({event:'command',func:'seekTo',args:[value,true]}),event.origin),
+         playVideo:()=>frame.contentWindow?.postMessage(JSON.stringify({event:'command',func:'playVideo',args:[]}),event.origin)
+       });
+     }
    };
    window.addEventListener('message',handler);
    const interval=setInterval(requestInfo,1500);
@@ -1277,7 +1288,7 @@ mediaSyncStatus.textContent=`${source==='cinesrc'?'CineSrc':source==='vixsrc'?'V
   }catch(e){ dbg('media:confirm-notif-error',{error:String(e)}) }
   if(!main2Visible){if(mediaCurrentId)destroyMediaPlayer();return}if(cur&&cur.id!==mediaCurrentId){mediaCurrentId=cur.id;mediaCurrentServer=String(cur.server||'Smart');mediaCurrentProvider=String(cur.provider||'smart');mediaAttemptId=String(cur.sourceAttemptId||'');mediaAttemptStartedAt=Date.now();mediaReadyKey='';mediaRevision=cur.playback?.revision||0;mediaVixReloaded=false;if(cur.type==='youtube'){mediaProviderOrder=['youtube'];mediaProviderIndex=0;mediaLoadSource('youtube','new_title')}else{mediaProviderOrder=Array.isArray(cur.providerOrder)&&cur.providerOrder.length?cur.providerOrder.filter(x=>['cinesrc','vixsrc','vidfast'].includes(x)):['vixsrc','cinesrc','vidfast'];if(!mediaProviderOrder.length)mediaProviderOrder=['vixsrc','cinesrc','vidfast'];mediaProviderIndex=0;mediaLoadSource(mediaProviderOrder[0],'new_title')}}else if(cur&&(cur.playback?.revision||0)>mediaRevision)applyMediaPlayback(cur);if(!cur){if(mediaLocalSource==='youtube'||ytPlayer||ytManualCleanup){destroyYT();resetMediaFrame()}mediaCurrentId='';mediaCurrentServer='';mediaCurrentProvider='';mediaAttemptId='';mediaAttemptStartedAt=0;mediaReadyKey='';mediaRevision=0;mediaLocalSource='cinesrc';mediaFrame.src='about:blank';mediaSyncStatus.textContent='Sync waiting…'}};
  const destroyMediaPlayer=()=>{clearTimeout(mediaFetchTimer);clearTimeout(mediaFallbackTimer);mediaFetchWarning.classList.remove('show');mediaPanel.classList.remove('show');mediaQueueList.classList.remove('show');try{const cn=mediaPanel.querySelector('[data-media-confirm]'); if(cn){ cn.classList.remove('show'); cn.dataset.open='0'; clearTimeout(cn._hideTimer); } }catch{}try{destroyYT();}catch{}const oldFrame=mediaFrame;if(oldFrame){ try{ if(oldFrame._ytFallbackTimer) clearTimeout(oldFrame._ytFallbackTimer); }catch{} oldFrame.onload=null; try{ oldFrame.contentWindow?.postMessage({command:'pause'},'*'); oldFrame.contentWindow?.postMessage({command:'mute',muted:true},'*'); }catch{} try{ oldFrame.src='about:blank'; }catch{} setTimeout(()=>{ try{ oldFrame.remove(); }catch{} },50); }mediaFrame=createMediaFrame();mediaCurrentId='';mediaCurrentServer='';mediaCurrentProvider='';mediaAttemptId='';mediaAttemptStartedAt=0;mediaReadyKey='';mediaRevision=0;mediaSuppressUntil=0;mediaWarningDismissed=false;mediaLocalSource='cinesrc';mediaVixReloaded=false;mediaProviderOrder=['vixsrc','cinesrc','vidfast'];mediaProviderIndex=0;mediaSyncStatus.textContent='Sync waiting…';box.classList.remove('bajsas-main2-selector');box.style.removeProperty('top');box.style.left='0px';dbg('media:player-hard-destroyed')};
- let mediaLastProgressSent=0;window.addEventListener('message',event=>{const isVidFast=vidfastOrigins.has(event.origin)&&event.data?.type==='PLAYER_EVENT',isCine=event.origin==='https://cinesrc.st'&&String(event.data?.type||'').startsWith('cinesrc:'),isVix=event.origin==='https://vixsrc.to'&&event.data?.type==='PLAYER_EVENT',isYT=youtubeOrigins.has(event.origin);if(isYT){/* YouTube postMessages handled via YT Player API, not this generic handler */ return;}if(mediaLocalSource==='youtube') return; if(event.source!==mediaFrame.contentWindow||(!isVidFast&&!isCine&&!isVix)||(mediaLocalSource==='cinesrc'&&!isCine)||(mediaLocalSource==='vixsrc'&&!isVix)||(mediaLocalSource==='vidfast'&&!isVidFast))return;const raw=isCine?event.data:(event.data.data||{}),status=isCine?String(raw.type||'').replace('cinesrc:',''):String(raw.event||''),time=Math.max(0,Number(raw.currentTime??raw.time)||0),duration=Math.max(0,Number(raw.duration)||0),cur=mediaLastState?.current;if(!cur)return;clearTimeout(mediaFallbackTimer);clearTimeout(mediaFetchTimer);mediaFetchWarning.classList.remove('show');if(status==='error'){mediaFailover(mediaLocalSource+'_error');return}const server=mediaLocalSource==='cinesrc'?'CineSrc':mediaLocalSource==='vixsrc'?'VixSrc.to':'VidFast.vc';if(mediaReadyKey!==mediaCurrentId+'|'+mediaLocalSource){mediaReadyKey=mediaCurrentId+'|'+mediaLocalSource;sendMedia({type:'media_source_ready',mediaId:mediaCurrentId,server,attemptId:mediaAttemptId,startupMs:Date.now()-mediaAttemptStartedAt})}const expected=mediaExpectedTime(cur),drift=time-expected,fmt=value=>`${Math.floor(Math.max(0,value)/60)}:${String(Math.floor(Math.max(0,value))%60).padStart(2,'0')}`;mediaSyncStatus.textContent=`${server} • Worker ${fmt(expected)} • Player ${fmt(time)} • Δ${Math.abs(drift).toFixed(1)}s`;const workerPlaying=cur.playback?.playing!==false,playing=isVidFast?Boolean(raw.playing):status==='play'||status==='timeupdate',canCorrect=Date.now()>mediaSuppressUntil,driftLimit=mediaLocalSource==='cinesrc'?60:3;if(workerPlaying&&['play','timeupdate','playerstatus','seeked','ready'].includes(status)&&Math.abs(drift)>driftLimit&&canCorrect&&Date.now()-mediaLastSyncCorrection>4000){mediaLastSyncCorrection=Date.now();mediaSuppressUntil=Date.now()+2500;if(mediaLocalSource==='vixsrc'){if(!mediaVixReloaded){mediaVixReloaded=true;mediaLoadSource('vixsrc','single_drift_reload')}}else{mediaCommand('seek',{time:expected});mediaCommand('play')}}else if(workerPlaying&&status==='pause'&&canCorrect){if(mediaLocalSource==='vixsrc'){if(!mediaVixReloaded){mediaVixReloaded=true;mediaLoadSource('vixsrc','unauthorized_pause')}}else{mediaCommand('seek',{time:expected});mediaCommand('play')}}else if(!workerPlaying&&playing&&canCorrect){if(mediaLocalSource==='vixsrc')mediaLoadSource('vixsrc','worker_pause');else mediaCommand('pause')}if(status==='ended')sendMedia({type:'media_ended',mediaId:mediaCurrentId,currentTime:time,duration});if(Date.now()-mediaLastProgressSent>8000&&['play','timeupdate','playerstatus'].includes(status)){mediaLastProgressSent=Date.now();sendMedia({type:'media_progress',mediaId:mediaCurrentId,time,duration,playing})}});
+ let mediaLastProgressSent=0;window.addEventListener('message',event=>{const isVidFast=vidfastOrigins.has(event.origin)&&event.data?.type==='PLAYER_EVENT',isCine=event.origin==='https://cinesrc.st'&&String(event.data?.type||'').startsWith('cinesrc:'),isVix=event.origin==='https://vixsrc.to'&&event.data?.type==='PLAYER_EVENT',isYT=youtubeOrigins.has(event.origin);if(isYT){/* YouTube postMessages handled via YT Player API, not this generic handler */ return;}if(mediaLocalSource==='youtube') return; if(event.source!==mediaFrame.contentWindow||(!isVidFast&&!isCine&&!isVix)||(mediaLocalSource==='cinesrc'&&!isCine)||(mediaLocalSource==='vixsrc'&&!isVix)||(mediaLocalSource==='vidfast'&&!isVidFast))return;const raw=isCine?event.data:(event.data.data||{}),status=isCine?String(raw.type||'').replace('cinesrc:',''):String(raw.event||''),time=Math.max(0,Number(raw.currentTime??raw.time)||0),duration=Math.max(0,Number(raw.duration)||0),cur=mediaLastState?.current;if(!cur)return;clearTimeout(mediaFallbackTimer);clearTimeout(mediaFetchTimer);mediaFetchWarning.classList.remove('show');if(status==='error'){mediaFailover(mediaLocalSource+'_error');return}const server=mediaLocalSource==='cinesrc'?'CineSrc':mediaLocalSource==='vixsrc'?'VixSrc.to':'VidFast.vc';if(mediaReadyKey!==mediaCurrentId+'|'+mediaLocalSource){mediaReadyKey=mediaCurrentId+'|'+mediaLocalSource;sendMedia({type:'media_source_ready',mediaId:mediaCurrentId,server,attemptId:mediaAttemptId,startupMs:Date.now()-mediaAttemptStartedAt})}const expected=mediaExpectedTime(cur),drift=time-expected,fmt=value=>`${Math.floor(Math.max(0,value)/60)}:${String(Math.floor(Math.max(0,value))%60).padStart(2,'0')}`;mediaSyncStatus.textContent=`${server} • Worker ${fmt(expected)} • Player ${fmt(time)} • Δ${Math.abs(drift).toFixed(1)}s`;const workerPlaying=cur.playback?.playing!==false,playing=isVidFast?Boolean(raw.playing):status==='play'||status==='timeupdate',canCorrect=Date.now()>mediaSuppressUntil,driftLimit=mediaLocalSource==='cinesrc'?60:3;if(workerPlaying&&['play','timeupdate','playerstatus','seeked','ready'].includes(status)&&Math.abs(drift)>driftLimit&&canCorrect&&Date.now()-mediaLastSyncCorrection>4000){mediaLastSyncCorrection=Date.now();mediaSuppressUntil=Date.now()+2500;if(mediaLocalSource==='vixsrc'){if(!mediaVixReloaded){mediaVixReloaded=true;mediaLoadSource('vixsrc','single_drift_reload')}}else{mediaCommand('seek',{time:expected});mediaCommand('play')}}else if(workerPlaying&&status==='pause'&&canCorrect){if(mediaLocalSource==='vixsrc'){if(!mediaVixReloaded){mediaVixReloaded=true;mediaLoadSource('vixsrc','unauthorized_pause')}}else{mediaCommand('seek',{time:expected});mediaCommand('play')}}else if(!workerPlaying&&playing&&canCorrect){if(mediaLocalSource==='vixsrc')mediaLoadSource('vixsrc','worker_pause');else mediaCommand('pause')}if(status==='ended'){const globallyEnded=duration>0&&expected>=duration-2;dbg('media:local-provider-ended',{mediaId:mediaCurrentId,source:mediaLocalSource,playerTime:time,duration,workerTime:expected,globallyEnded});if(!globallyEnded&&canCorrect){mediaSuppressUntil=Date.now()+2500;if(mediaLocalSource==='vixsrc')mediaLoadSource('vixsrc','local_end_resync');else{mediaCommand('seek',{time:expected});if(workerPlaying)mediaCommand('play')}}return}if(Date.now()-mediaLastProgressSent>8000&&['play','timeupdate','playerstatus'].includes(status)){mediaLastProgressSent=Date.now();sendMedia({type:'media_progress',mediaId:mediaCurrentId,time,duration,playing})}});
 
 
  const MAIN2_SELECTOR_Y_KEY='bajsas_main2_selector_y';
