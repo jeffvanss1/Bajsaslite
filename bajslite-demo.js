@@ -1,5 +1,5 @@
 javascript:(async function(){
- if (window.self !== window.top) return; // don't run inside iframes
+ if (window.self !== window.top) return; 
  console.log('[BajSAS Lite] Starting...');
  if (document.getElementById('custom-stream-wrapper')) { console.log('[BajSAS Lite] Already running — remove #custom-stream-wrapper first'); return; }
 
@@ -34,8 +34,8 @@ javascript:(async function(){
  dbg('channels:loaded', { count: channels.length });
  } catch (e) { console.log('[BajSAS Lite] Failed to load channel list:', e); return; }
 
- // Always start on the native Twitch player. Stream selection is session-only;
- // discard values saved by older versions instead of restoring an overlay.
+ 
+ 
  localStorage.removeItem(LS_STREAM);
  const savedStream = 'Twitch';
  const isTheaterSaved = localStorage.getItem(LS_THEATER) === "1";
@@ -199,9 +199,9 @@ margin-left: 2px !important;
 
  injectLiveDotStyle();
 
- // Warm network handshakes without starting hidden video players. Preloading
- // every iframe wastes bandwidth and can trigger ads/autoplay limits; preconnect
- // gives most of the startup benefit with no stream downloads.
+ 
+ 
+ 
  const playerOrigins = [
  'https://player.twitch.tv',
  'https://player.kick.com',
@@ -271,7 +271,7 @@ margin-left: 2px !important;
  if (!url) return false;
 
  const cached = liveCache.get(url);
- // YouTube status is fetched once per BajSAS page session.
+ 
  if (cached && (isYouTubeUrl(url) || Date.now() - cached.time < 30000)) {
  return cached.live;
  }
@@ -319,7 +319,7 @@ margin-left: 2px !important;
  else if (isYouTubeUrl(url)) {
  const videoId = extractYouTubeVideoId(url);
  if (videoId) {
- // The API key remains server-side in the Worker's YOUTUBE_API_KEY secret.
+ 
  const res = await fetch(`${WORKER_BASE_URL}/youtube-live?id=${encodeURIComponent(videoId)}`, {
  cache: 'no-store'
  });
@@ -407,10 +407,10 @@ margin-left: 2px !important;
  targetContainer.style.position = 'relative';
  targetContainer.classList.add('stream-container-mod');
 
- // Do not rely on :hover for visibility. Twitch can replace/cover the native
- // video during an ad while the container remains hovered, leaving the UI at
- // full opacity indefinitely. Treat recent pointer activity as the signal and
- // always return to the idle opacity after a short delay.
+ 
+ 
+ 
+ 
  let streamUiIdleTimer = null;
  const setStreamUiActive = () => {
  targetContainer.classList.add('stream-ui-active');
@@ -555,8 +555,8 @@ margin-left: 2px !important;
  const slug = extractKickSlug(url);
  let j = null;
  try {
- // Kick often blocks Cloudflare Worker IPs but allows its public API from
- // browsers. Prefer the direct request and use the Worker only as fallback.
+ 
+ 
  const r = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`);
  if (r.ok) j = await r.json();
  } catch {}
@@ -625,8 +625,8 @@ margin-left: 2px !important;
 
  const renderButtonPreview = (name, data) => {
  buttonPreviewCard.replaceChildren();
- // Use one consistent generated design for every confirmed offline channel,
- // even when the platform supplies its own offline banner.
+ 
+ 
  if (data.live === false) {
  buttonPreviewCard.appendChild(makeStatusBanner(data.platform, data.live === true ? 'live' : 'offline'));
  } else if (data.image) {
@@ -658,8 +658,8 @@ margin-left: 2px !important;
  if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
  if (data.image && data.live !== false) await Promise.race([preloadPreviewImage(data.image), new Promise(resolve => setTimeout(resolve, 250))]);
  if (token === buttonPreviewToken) renderButtonPreview(name, data);
- // Kick commonly reuses the same thumbnail URL while replacing the image.
- // Refresh an open preview every 10 seconds and cache-bust the image request.
+ 
+ 
  if (url.includes('kick.com') && token === buttonPreviewToken) {
  const refresh = async () => {
  if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
@@ -687,8 +687,8 @@ margin-left: 2px !important;
  if (emoteUrl && !isNative) {
      const emote = document.createElement('img');
      emote.className = 'btn-emote';
-     // Convert gist URL (4x.avif) → 2x.webp for maximum browser compat
-     // 2x.webp confirmed HTTP 200 for ALL 18 emotes on 7TV CDN
+     
+     
      const optimizedUrl = emoteUrl.replace(/\/\d+x\.\w+$/, '/2x.webp');
      emote.src = optimizedUrl;
      emote.alt = text;
@@ -696,9 +696,9 @@ margin-left: 2px !important;
      emote.onerror = () => {
          if (!_triedOriginal) {
              _triedOriginal = true;
-             emote.src = emoteUrl; // try original URL as last resort
+             emote.src = emoteUrl; 
          } else {
-             emote.remove(); nameEl.style.display = ''; // give up, show text
+             emote.remove(); nameEl.style.display = ''; 
          }
      };
      btn.appendChild(dot);
@@ -737,7 +737,7 @@ margin-left: 2px !important;
  }
  }
 
-     // Do not persist the selected stream across app/page starts.
+     
      setActive(btn);
  };
 
@@ -882,9 +882,9 @@ margin-left: 2px !important;
  wrapper.appendChild(box);
  targetContainer.appendChild(wrapper);
 
- // Twitch replaces player DOM during ads, quality changes, and SPA navigation.
- // Keep the existing iframe alive and move it to the new stable player host
- // instead of exposing the native player and appearing to switch streams.
+ 
+ 
+ 
  const playerMountWatchdog = setInterval(() => {
  if (wrapper.isConnected && targetContainer.isConnected) return;
  const nextContainer = findStablePlayerContainer();
@@ -899,26 +899,26 @@ margin-left: 2px !important;
  dbg('player:wrapper-reattached', { previousConnected: previous?.isConnected || false });
  }, 250);
 
- // Warm metadata and decode thumbnails during idle time so hover performs no
- // network or image-decoding work on the interaction frame.
+ 
+ 
  warmButtonPreviews();
 
- // ═══════════════════════════════════════════════════════════════════
- // BajSAS Chat Watch Badges — lightweight
- // Badges show the watched channel and switch the existing overlay.
- // Works with native Twitch, 7TV, BTTV, and FFZ.
- // ═══════════════════════════════════════════════════════════════════
+ 
+ 
+ 
+ 
+ 
  {
      const BASE_URL   = 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
-     const PING_KEY   = 'bajsas_ping_2024'; // sent in ?key= and POST body for auth
+     const PING_KEY   = 'bajsas_ping_2024'; 
  const WS_URL = 'wss://' + BASE_URL.replace('https://','') + '/ws?key=bajsas_secret_2024&version=' + encodeURIComponent(APP_VERSION);
  const PING_URL = BASE_URL + '/ping';
  const TOKEN_URL = BASE_URL + '/token';
 
  const WATCH_CACHE_KEY = 'bajsas_watch_cache_v1';
- const WATCH_CACHE_TTL = 24 * 60 * 60 * 1000; // bootstrap cache; WebSocket replaces it after connect
- let bwm = new Map(); // authoritative live map
- const bLocalWatchCache = new Map(); // fast startup/message fallback
+ const WATCH_CACHE_TTL = 24 * 60 * 60 * 1000; 
+ let bwm = new Map(); 
+ const bLocalWatchCache = new Map(); 
  try {
  const cached = JSON.parse(localStorage.getItem(WATCH_CACHE_KEY) || '[]');
  const now = Date.now();
@@ -939,7 +939,7 @@ margin-left: 2px !important;
  dbg('watch-cache:saved', { entries: entries.length });
  } catch (error) { dbg('watch-cache:save-error', { error: String(error) }); }
  };
- const bOfflineTimers = new Map(); // username → pending offline timeout
+ const bOfflineTimers = new Map(); 
  const bPresenceUsers = new Map();
  const expandedPresenceGroups = new Set();
  const presencePanel = document.createElement('div'); presencePanel.className = 'bajsas-presence-panel';
@@ -977,7 +977,7 @@ margin-left: 2px !important;
  };
  presenceButton.onclick = event => { event.stopPropagation(); const opened=presencePanel.classList.toggle('show'); presenceButton.classList.toggle('panel-open',opened); renderPresence(); };
  wrapper.appendChild(presenceButton); wrapper.appendChild(presencePanel);
- // Introduce the control on launch, then keep it subtle until the player is hovered.
+ 
  setTimeout(() => presenceButton.classList.add('is-idle'), 7000);
  presencePanel.addEventListener('click', event => event.stopPropagation());
  document.addEventListener('pointerdown', event => { if (!presencePanel.classList.contains('show')) return; if (presencePanel.contains(event.target) || presenceButton.contains(event.target)) return; presencePanel.classList.remove('show'); presenceButton.classList.remove('panel-open'); }, true);
@@ -985,7 +985,7 @@ margin-left: 2px !important;
  const mediaPanel=document.createElement('div');mediaPanel.className='bajsas-media';mediaPanel.innerHTML='<iframe allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe><div class="bajsas-media-lock" data-media-sync-status>Sync waiting…</div><div class="bajsas-media-confirm" data-media-confirm><div class="bajsas-media-confirm-title">🔔 Confirmation Open!</div><div class="bajsas-media-confirm-sub" data-media-confirm-text>Final 3 minutes - confirm your next request</div><div class="bajsas-media-confirm-actions" data-media-confirm-actions></div><div class="bajsas-media-confirm-progress" data-media-confirm-progress style="display:none"><i data-media-confirm-bar></i></div><button type="button" class="custom-stream-btn" style="position:absolute;right:8px;top:8px;padding:2px 6px;font-size:11px" data-media-confirm-close>✕</button></div><div class="bajsas-media-fetch-warning" data-media-fetch-warning><button type="button" data-media-warning-close aria-label="Close">✕</button>Player is taking too long to load. Close DevTools/Console, then close and reopen MAIN 2.</div><div class="bajsas-media-bar"><input placeholder="IMDb link/ID, TMDB ID, TV ID season episode, or YouTube link"><button class="custom-stream-btn" data-media-add>Request</button><button class="custom-stream-btn" data-media-vote>Vote Skip</button><span class="bajsas-media-queue" data-media-status>No media</span><div class="bajsas-media-provider-wrap"><button type="button" class="custom-stream-btn bajsas-media-provider-toggle" data-media-provider-toggle disabled>Switch Provider ▾</button><div class="bajsas-media-provider-menu" data-media-provider-menu role="menu" aria-label="Local provider selection"><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="vixsrc">VixSrc</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="vixsrc" title="Prioritize VixSrc locally" aria-label="Prioritize VixSrc locally">☆</button></div><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="cinesrc">CineSrc</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="cinesrc" title="Prioritize CineSrc locally" aria-label="Prioritize CineSrc locally">☆</button></div><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="vidfast">VidFast</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="vidfast" title="Prioritize VidFast locally" aria-label="Prioritize VidFast locally">☆</button></div></div></div><button class="custom-stream-btn" data-media-close>✕</button></div>';wrapper.appendChild(mediaPanel);
  const mediaButton=document.createElement('button');mediaButton.className='custom-stream-btn is-live';const mediaLiveDot=document.createElement('span');mediaLiveDot.className='live-dot';const mediaButtonName=document.createElement('span');mediaButtonName.className='btn-name';mediaButtonName.textContent='▶ MAIN 2';mediaButton.append(mediaLiveDot,mediaButtonName);mediaButton.title='Media Share watch party';mediaButton.dataset.mediaChannel='1';const mainButton=[...btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]')].find(button=>(button.dataset.streamName||'').toLowerCase()==='main');if(mainButton)mainButton.insertAdjacentElement('afterend',mediaButton);else btnRow.appendChild(mediaButton);
  let mediaFrame=mediaPanel.querySelector('iframe');const mediaInput=mediaPanel.querySelector('input'),mediaStatus=mediaPanel.querySelector('[data-media-status]'),mediaFetchWarning=mediaPanel.querySelector('[data-media-fetch-warning]'),mediaSyncStatus=mediaPanel.querySelector('[data-media-sync-status]'),mediaProviderToggle=mediaPanel.querySelector('[data-media-provider-toggle]'),mediaProviderMenu=mediaPanel.querySelector('[data-media-provider-menu]');let mediaFetchTimer=null,mediaFallbackTimer=null;const createMediaFrame=()=>{const frame=document.createElement('iframe');frame.allow='autoplay; fullscreen; encrypted-media; picture-in-picture';frame.setAttribute('allowfullscreen','');mediaPanel.prepend(frame);return frame};const mediaQueueList=document.createElement('div');mediaQueueList.className='bajsas-media-queue-list';document.body.appendChild(mediaQueueList);let mediaCurrentId='',mediaCurrentServer='',mediaCurrentProvider='',mediaAttemptId='',mediaAttemptStartedAt=0,mediaReadyKey='',mediaRevision=0,mediaSuppressUntil=0,mediaClockOffset=0,mediaLastState=null,mediaHoverCard=null,mediaLastObservedTime=-1,mediaLastAdvancedAt=Date.now(),mediaBufferReportedKey='',mediaLastSyncCorrection=0,mediaSyncIgnoreUntil=0,mediaSeekAttemptKey='',mediaWarningDismissed=false,mediaLocalSource='cinesrc';
- const MEDIA_PROVIDER_LOCAL_PRIORITY_KEY='bajsas_main2_local_provider_priority',MEDIA_PROVIDER_PRIORITY_WAIT_MS=5000,mediaProviderSources=['vixsrc','cinesrc','vidfast'];
+ const MEDIA_PROVIDER_LOCAL_PRIORITY_KEY='bajsas_main2_local_provider_priority',mediaProviderSources=['vixsrc','cinesrc','vidfast'];
  const mediaProviderDisplayName=source=>source==='vixsrc'?'VixSrc':source==='cinesrc'?'CineSrc':source==='vidfast'?'VidFast':source==='youtube'?'YouTube':'Provider';
  let mediaPreferredProvider=(()=>{try{const saved=String(localStorage.getItem(MEDIA_PROVIDER_LOCAL_PRIORITY_KEY)||'').toLowerCase();if(saved==='none')return'';return mediaProviderSources.includes(saved)?saved:'vixsrc'}catch{return'vixsrc'}})();
  const mediaLocalProviderOrder=()=>{const order=[];for(const source of mediaProviderOrder){if(mediaProviderSources.includes(source)&&!order.includes(source))order.push(source)}if(!order.length)order.push(...mediaProviderSources);if(mediaPreferredProvider&&order.includes(mediaPreferredProvider)){order.splice(order.indexOf(mediaPreferredProvider),1);order.unshift(mediaPreferredProvider)}return order};
@@ -1010,14 +1010,14 @@ margin-left: 2px !important;
     dbg('media:clock-sync',{offsetMs:Math.round(mediaClockOffset),rttMs:Math.round(received-started),efficient:true});
   }catch(error){dbg('media:clock-sync-error',{error:String(error)})}
 };
- // Intentionally no clock polling: opening MAIN 2 takes one server-time sample,
- // then mediaExpectedTime() predicts Worker time locally from that anchor.
+ 
+ 
  const sendMedia=message=>{if(bws?.readyState===1)bws.send(JSON.stringify(message))};
  const vidfastOrigins=new Set(['https://vidfast.pro','https://vidfast.in','https://vidfast.io','https://vidfast.me','https://vidfast.net','https://vidfast.pm','https://vidfast.xyz','https://vidfast.vc','https://vidfast.bz']);
  const youtubeOrigins=new Set(['https://www.youtube-nocookie.com','https://www.youtube.com','https://youtube-nocookie.com','https://youtube.com','https://m.youtube.com']);
  
 const mediaCommand=(command,args={})=>{try{if(mediaLocalSource==='cinesrc')mediaFrame.contentWindow?.postMessage({type:'cinesrc:command',command,args},'https://cinesrc.st');else if(mediaLocalSource==='vidfast')mediaFrame.contentWindow?.postMessage({command,...args},'*')}catch(error){dbg('media:command-error',{source:mediaLocalSource,command,error:String(error)})}};
- // ─── YouTube MAIN 2 support ────────────────────────────────────────
+ 
  let ytPlayer=null, ytApiReady=null, ytApiLoading=false, ytApiLoadTimer=null, ytPollTimer=null, ytLastDuration=0, ytLastTime=0, ytManualCleanup=null, ytSession=0;
  const loadYouTubeAPI=()=>{
    if(window.YT&&window.YT.Player){ytApiReady=Promise.resolve(window.YT);return ytApiReady}
@@ -1210,24 +1210,23 @@ const mediaCommand=(command,args={})=>{try{if(mediaLocalSource==='cinesrc')media
  };
 
  let mediaVixReloadArmed=true,mediaVixStableSince=0,mediaVixLastReloadAt=0,mediaVixLoadStartedAt=0,mediaVixStartupLeadSec=0,mediaVixStartupMeasured=false,mediaVixDriftSamples=[],mediaProviderOrder=['vixsrc','cinesrc','vidfast'],mediaProviderIndex=0,mediaProviderRace=null;
- const mediaProviderEmbedUrl=(source,cur,start,playing)=>{const tmdbId=cur.tmdbId||(/^\d+$/.test(String(cur.providerId||''))?cur.providerId:''),playerId=/^tt\d+$/i.test(String(cur.providerId||''))?cur.providerId:(cur.tmdbId||cur.providerId),color=String(mediaLastState?.playerConfig?.color||'e50914').replace(/^#/,''),lang=String(mediaLastState?.playerConfig?.sub||'en');if(source==='cinesrc'){if(!tmdbId)return'';const params=`autoplay=${playing?1:0}&autonext=0&autoskip=0&t=${start}`;return cur.type==='tv'?`https://cinesrc.st/embed/tv/${encodeURIComponent(tmdbId)}?s=${Number(cur.season||1)}&e=${Number(cur.episode||1)}&${params}`:`https://cinesrc.st/embed/movie/${encodeURIComponent(tmdbId)}?${params}`}if(source==='vixsrc'){const params=`autoplay=${playing?'true':'false'}&startAt=${start}&primaryColor=${encodeURIComponent(color)}&secondaryColor=170000&lang=${encodeURIComponent(lang)}`;return cur.type==='tv'?`https://vixsrc.to/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vixsrc.to/movie/${encodeURIComponent(playerId)}?${params}`}if(source==='vidfast'){const params=`autoPlay=${playing?'true':'false'}&startAt=${start}&chromecast=false&nextButton=false&autoNext=false&autoSkip=false&theme=${encodeURIComponent(color)}&sub=${encodeURIComponent(lang)}`;return cur.type==='tv'?`https://vidfast.vc/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vidfast.vc/movie/${encodeURIComponent(playerId)}?${params}`}return''};
- const clearMediaProviderRace=(keepFrame=null,replaceFrame=true)=>{const race=mediaProviderRace;if(!race)return;const frames=[...race.frames.values()],replace=replaceFrame&&!keepFrame&&(frames.includes(mediaFrame)||!mediaFrame?.isConnected);mediaProviderRace=null;clearTimeout(race.preferenceTimer);for(const frame of frames){if(frame===keepFrame)continue;try{frame.onload=null;frame.src='about:blank';frame.remove()}catch{}}if(keepFrame)mediaFrame=keepFrame;else if(replace)mediaFrame=createMediaFrame()};
- const mediaStartProviderRace=()=>{const cur=mediaLastState?.current;if(!cur||cur.type==='youtube'||!mediaPanel.classList.contains('show'))return false;if(mediaLocalSource==='youtube'||ytPlayer||ytManualCleanup){destroyYT();resetMediaFrame()}clearMediaProviderRace(null,true);const workerStart=Math.floor(mediaExpectedTime(cur)),playing=cur.playback?.playing!==false,vixLead=playing?Math.max(0,Math.min(12,mediaVixStartupLeadSec)):0,baseFrame=mediaFrame,candidates=[],localOrder=mediaLocalProviderOrder();for(const source of localOrder){if(!['cinesrc','vixsrc','vidfast'].includes(source))continue;const start=Math.floor(workerStart+(source==='vixsrc'?vixLead:0)),url=mediaProviderEmbedUrl(source,cur,start,playing);if(!url)continue;const frame=candidates.length?createMediaFrame():baseFrame;frame.style.visibility='hidden';frame.style.opacity='0';frame.style.pointerEvents='none';frame.setAttribute('aria-hidden','true');frame.dataset.mediaProbeSource=source;candidates.push({source,frame,url,start})}if(!candidates.length){mediaFetchWarning.classList.add('show');return false}mediaProviderRace={mediaId:mediaCurrentId,attemptId:mediaAttemptId,frames:new Map(candidates.map(entry=>[entry.source,entry.frame])),order:localOrder,preferredSource:candidates.some(entry=>entry.source===mediaPreferredProvider)?mediaPreferredProvider:'',ready:new Map(),playbackSamples:new Map(),expectPlaying:playing,preferenceTimer:null,startedAt:Date.now(),winner:''};mediaLocalSource=candidates[0].source;mediaReadyKey='';mediaLastSyncCorrection=0;mediaSuppressUntil=Date.now()+3000;mediaVixLoadStartedAt=Date.now();mediaVixStartupMeasured=false;mediaVixDriftSamples=[];clearTimeout(mediaFetchTimer);clearTimeout(mediaFallbackTimer);mediaFetchWarning.classList.remove('show');mediaSyncStatus.textContent=`Checking ${candidates.map(entry=>(entry.source===mediaProviderRace.preferredSource?'★ ':'')+mediaProviderDisplayName(entry.source)).join(' • ')}…`;mediaRefreshProviderMenu();mediaFetchTimer=setTimeout(()=>{if(mediaProviderRace&&!mediaWarningDismissed)mediaFetchWarning.classList.add('show')},12000);mediaFallbackTimer=setTimeout(()=>{if(mediaProviderRace){mediaFetchWarning.classList.add('show');dbg('media:provider-race-timeout',{providers:[...mediaProviderRace.frames.keys()]})}},30000);for(const entry of candidates){entry.frame.onload=()=>{dbg('media:probe-iframe-loaded',{source:entry.source});if(entry.source==='vidfast'){setTimeout(()=>{try{entry.frame.contentWindow?.postMessage({command:'getStatus'},'*')}catch{}},700);setTimeout(()=>{try{entry.frame.contentWindow?.postMessage({command:'getStatus'},'*')}catch{}},2500)}};entry.frame.src=entry.url}dbg('media:provider-race-started',{providers:candidates.map(entry=>entry.source),workerStart});return true};
- const mediaSelectProviderRaceWinner=(source,frame)=>{const race=mediaProviderRace;if(!race||race.mediaId!==mediaCurrentId||race.frames.get(source)!==frame)return false;race.winner=source;mediaProviderRace=null;clearTimeout(race.preferenceTimer);if(Array.isArray(race.order)&&race.order.length)mediaProviderOrder=[source,...race.order.filter(item=>item!==source)];mediaFrame=frame;mediaLocalSource=source;mediaProviderIndex=0;const server=source==='cinesrc'?'CineSrc':source==='vixsrc'?'VixSrc.to':'VidFast.vc';if(mediaReadyKey!==mediaCurrentId+'|'+source){mediaReadyKey=mediaCurrentId+'|'+source;sendMedia({type:'media_source_ready',mediaId:mediaCurrentId,server,attemptId:mediaAttemptId,startupMs:Date.now()-mediaAttemptStartedAt})}for(const [otherSource,otherFrame] of race.frames){if(otherFrame===frame)continue;try{otherFrame.onload=null;otherFrame.src='about:blank';otherFrame.remove()}catch{}dbg('media:provider-probe-stopped',{source:otherSource,winner:source})}frame.style.removeProperty('visibility');frame.style.removeProperty('opacity');frame.style.removeProperty('pointer-events');frame.removeAttribute('aria-hidden');delete frame.dataset.mediaProbeSource;clearTimeout(mediaFetchTimer);clearTimeout(mediaFallbackTimer);mediaFetchWarning.classList.remove('show');mediaRefreshProviderMenu();dbg('media:provider-race-winner',{source,startupMs:Date.now()-race.startedAt});return true};
- const mediaProviderRaceFirstReady=race=>{for(const [source,frame] of race.ready){if(race.frames.get(source)===frame)return{source,frame}}return null};
+ const mediaProviderEmbedUrl=(source,cur,start,playing)=>{const tmdbId=cur.tmdbId||(/^\d+$/.test(String(cur.providerId||''))?cur.providerId:''),playerId=/^tt\d+$/i.test(String(cur.providerId||''))?cur.providerId:(cur.tmdbId||cur.providerId),color=String(mediaLastState?.playerConfig?.color||'e50914').replace(/^#/,''),lang=String(mediaLastState?.playerConfig?.sub||'en');if(source==='cinesrc'){if(!tmdbId)return'';const params=`autoplay=${playing?1:0}&autonext=0&autoskip=0&t=${start}&continueprompt=false`;return cur.type==='tv'?`https://cinesrc.st/embed/tv/${encodeURIComponent(tmdbId)}?s=${Number(cur.season||1)}&e=${Number(cur.episode||1)}&${params}`:`https://cinesrc.st/embed/movie/${encodeURIComponent(tmdbId)}?${params}`}if(source==='vixsrc'){const params=`autoplay=${playing?'true':'false'}&startAt=${start}&primaryColor=${encodeURIComponent(color)}&secondaryColor=170000&lang=${encodeURIComponent(lang)}`;return cur.type==='tv'?`https://vixsrc.to/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vixsrc.to/movie/${encodeURIComponent(playerId)}?${params}`}if(source==='vidfast'){const params=`autoPlay=${playing?'true':'false'}&startAt=${start}&chromecast=false&nextButton=false&autoNext=false&autoSkip=false&theme=${encodeURIComponent(color)}&sub=${encodeURIComponent(lang)}`;return cur.type==='tv'?`https://vidfast.vc/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vidfast.vc/movie/${encodeURIComponent(playerId)}?${params}`}return''};
+ const clearMediaProviderRace=(keepFrame=null,replaceFrame=true)=>{const race=mediaProviderRace;if(!race)return;const frames=[...race.frames.values()],replace=replaceFrame&&!keepFrame&&(frames.includes(mediaFrame)||!mediaFrame?.isConnected);mediaProviderRace=null;for(const frame of frames){if(frame===keepFrame)continue;try{frame.onload=null;frame.src='about:blank';frame.remove()}catch{}}if(keepFrame)mediaFrame=keepFrame;else if(replace)mediaFrame=createMediaFrame()};
+ const mediaStartProviderRace=()=>{const cur=mediaLastState?.current;if(!cur||cur.type==='youtube'||!mediaPanel.classList.contains('show'))return false;if(mediaLocalSource==='youtube'||ytPlayer||ytManualCleanup){destroyYT();resetMediaFrame()}clearMediaProviderRace(null,true);const workerStart=Math.floor(mediaExpectedTime(cur)),playing=cur.playback?.playing!==false,vixLead=playing?Math.max(0,Math.min(12,mediaVixStartupLeadSec)):0,baseFrame=mediaFrame,candidates=[],localOrder=mediaLocalProviderOrder();for(const source of localOrder){if(!['cinesrc','vixsrc','vidfast'].includes(source))continue;const start=Math.floor(workerStart+(source==='vixsrc'?vixLead:0)),url=mediaProviderEmbedUrl(source,cur,start,playing);if(!url)continue;const frame=candidates.length?createMediaFrame():baseFrame;frame.style.visibility='hidden';frame.style.opacity='0';frame.style.pointerEvents='none';frame.setAttribute('aria-hidden','true');frame.dataset.mediaProbeSource=source;candidates.push({source,frame,url,start})}if(!candidates.length){mediaFetchWarning.classList.add('show');return false}mediaProviderRace={mediaId:mediaCurrentId,attemptId:mediaAttemptId,frames:new Map(candidates.map(entry=>[entry.source,entry.frame])),order:localOrder,preferredSource:candidates.some(entry=>entry.source===mediaPreferredProvider)?mediaPreferredProvider:'',ready:new Map(),playbackSamples:new Map(),expectPlaying:playing,startedAt:Date.now(),winner:''};mediaLocalSource=candidates[0].source;mediaReadyKey='';mediaLastSyncCorrection=0;mediaSuppressUntil=Date.now()+3000;mediaVixLoadStartedAt=Date.now();mediaVixStartupMeasured=false;mediaVixDriftSamples=[];clearTimeout(mediaFetchTimer);clearTimeout(mediaFallbackTimer);mediaFetchWarning.classList.remove('show');mediaSyncStatus.textContent=`Checking ${candidates.map(entry=>(entry.source===mediaProviderRace.preferredSource?'★ ':'')+mediaProviderDisplayName(entry.source)).join(' • ')}…`;mediaRefreshProviderMenu();mediaFetchTimer=setTimeout(()=>{if(mediaProviderRace&&!mediaWarningDismissed)mediaFetchWarning.classList.add('show')},12000);mediaFallbackTimer=setTimeout(()=>{if(mediaProviderRace){mediaFetchWarning.classList.add('show');dbg('media:provider-race-timeout',{providers:[...mediaProviderRace.frames.keys()]})}},30000);for(const entry of candidates){entry.frame.onload=()=>{dbg('media:probe-iframe-loaded',{source:entry.source});if(entry.source==='vidfast'){setTimeout(()=>{try{entry.frame.contentWindow?.postMessage({command:'getStatus'},'*')}catch{}},700);setTimeout(()=>{try{entry.frame.contentWindow?.postMessage({command:'getStatus'},'*')}catch{}},2500)}};entry.frame.src=entry.url}dbg('media:provider-race-started',{providers:candidates.map(entry=>entry.source),workerStart});return true};
+ const mediaSelectProviderRaceWinner=(source,frame)=>{const race=mediaProviderRace;if(!race||race.mediaId!==mediaCurrentId||race.frames.get(source)!==frame)return false;race.winner=source;mediaProviderRace=null;if(Array.isArray(race.order)&&race.order.length)mediaProviderOrder=[source,...race.order.filter(item=>item!==source)];mediaFrame=frame;mediaLocalSource=source;mediaProviderIndex=0;const server=source==='cinesrc'?'CineSrc':source==='vixsrc'?'VixSrc.to':'VidFast.vc';if(mediaReadyKey!==mediaCurrentId+'|'+source){mediaReadyKey=mediaCurrentId+'|'+source;sendMedia({type:'media_source_ready',mediaId:mediaCurrentId,server,attemptId:mediaAttemptId,startupMs:Date.now()-mediaAttemptStartedAt})}for(const [otherSource,otherFrame] of race.frames){if(otherFrame===frame)continue;try{otherFrame.onload=null;otherFrame.src='about:blank';otherFrame.remove()}catch{}dbg('media:provider-probe-stopped',{source:otherSource,winner:source})}frame.style.removeProperty('visibility');frame.style.removeProperty('opacity');frame.style.removeProperty('pointer-events');frame.removeAttribute('aria-hidden');delete frame.dataset.mediaProbeSource;clearTimeout(mediaFetchTimer);clearTimeout(mediaFallbackTimer);mediaFetchWarning.classList.remove('show');mediaRefreshProviderMenu();dbg('media:provider-race-winner',{source,startupMs:Date.now()-race.startedAt});return true};
  const mediaProviderRacePlaybackEvidence=(race,source,raw,status)=>{const eventName=String(status||'').toLowerCase(),state=String(raw?.state??raw?.status??'').toLowerCase(),timeValue=raw?.currentTime??raw?.time,hasTime=timeValue!==null&&timeValue!==undefined&&timeValue!==''&&Number.isFinite(Number(timeValue)),currentTime=hasTime?Math.max(0,Number(timeValue)):0,duration=Math.max(0,Number(raw?.duration)||0),now=Date.now(),previous=race.playbackSamples.get(source);if(hasTime)race.playbackSamples.set(source,{time:currentTime,at:now});const elapsed=previous?Math.max(.05,(now-previous.at)/1000):0,delta=previous?currentTime-previous.time:0,advancing=Boolean(previous&&hasTime&&!['seek','seeking','seeked'].includes(eventName)&&delta>=.15&&delta<=Math.max(3,elapsed*2.5+1)),explicitPlaying=['play','playing','playbackstarted','playback_started'].includes(eventName)||raw?.playing===true||raw?.isPlaying===true||state==='playing';if(race.expectPlaying===false)return explicitPlaying||Boolean(hasTime&&duration>0&&['ready','timeupdate','seeked','playerstatus','pause','paused'].includes(eventName));return explicitPlaying||advancing};
- const mediaQueueProviderRaceReady=(source,frame)=>{const race=mediaProviderRace;if(!race||race.frames.get(source)!==frame)return false;race.ready.set(source,frame);const preferred=race.preferredSource,preferredPending=Boolean(preferred&&race.frames.has(preferred));if(!preferredPending||source===preferred)return mediaSelectProviderRaceWinner(source,frame);if(!race.preferenceTimer){race.preferenceTimer=setTimeout(()=>{if(mediaProviderRace!==race)return;race.preferenceTimer=null;const first=mediaProviderRaceFirstReady(race);if(first)mediaSelectProviderRaceWinner(first.source,first.frame)},MEDIA_PROVIDER_PRIORITY_WAIT_MS)}mediaSyncStatus.textContent=`${mediaProviderDisplayName(source)} is playing • waiting ${MEDIA_PROVIDER_PRIORITY_WAIT_MS/1000}s for ★ ${mediaProviderDisplayName(preferred)}`;dbg('media:provider-race-priority-wait',{ready:source,preferred,waitMs:MEDIA_PROVIDER_PRIORITY_WAIT_MS});return true};
- const mediaDropProviderRaceSource=(source,frame)=>{const race=mediaProviderRace;if(!race||race.frames.get(source)!==frame)return;race.frames.delete(source);race.ready.delete(source);race.playbackSamples.delete(source);try{frame.onload=null;frame.src='about:blank';frame.remove()}catch{}if(source===race.preferredSource){race.preferredSource='';clearTimeout(race.preferenceTimer);race.preferenceTimer=null;const first=mediaProviderRaceFirstReady(race);if(first){mediaSelectProviderRaceWinner(first.source,first.frame);return}}else if(!race.ready.size&&race.preferenceTimer){clearTimeout(race.preferenceTimer);race.preferenceTimer=null}dbg('media:provider-probe-error',{source,remaining:[...race.frames.keys()]});if(!race.frames.size)mediaFetchWarning.classList.add('show')};
- // Adaptive VixSrc policy: tolerate up to 50 seconds, confirm >50–60 second drift, and cap unsynchronized playback at one minute.
+ const mediaQueueProviderRaceReady=(source,frame)=>{const race=mediaProviderRace;if(!race||race.frames.get(source)!==frame)return false;race.ready.set(source,frame);mediaSyncStatus.textContent=`${mediaProviderDisplayName(source)} is playing`;dbg('media:provider-race-first-playback',{source,preferred:race.preferredSource||''});return mediaSelectProviderRaceWinner(source,frame)};
+ const mediaDropProviderRaceSource=(source,frame)=>{const race=mediaProviderRace;if(!race||race.frames.get(source)!==frame)return;race.frames.delete(source);race.ready.delete(source);race.playbackSamples.delete(source);try{frame.onload=null;frame.src='about:blank';frame.remove()}catch{}if(source===race.preferredSource)race.preferredSource='';dbg('media:provider-probe-error',{source,remaining:[...race.frames.keys()]});if(!race.frames.size)mediaFetchWarning.classList.add('show')};
+ 
  const mediaVixSyncDecision=(rawDrift,samples)=>{const values=(Array.isArray(samples)?samples:[]).map(Number).filter(Number.isFinite).slice(-5),sorted=[...values].sort((a,b)=>a-b),median=sorted.length?sorted[Math.floor(sorted.length/2)]:Number(rawDrift)||0,absoluteRaw=Math.abs(Number(rawDrift)||0),recent=values.slice(-3),direction=recent.length?Math.sign(recent[0]):0,consistent=recent.length===3&&direction!==0&&recent.every(value=>Math.abs(value)>50&&Math.abs(value)<=60&&Math.sign(value)===direction);if(absoluteRaw>60)return{correct:true,zone:'critical',drift:median};if(absoluteRaw<=50)return{correct:false,zone:'stable',drift:median};return{correct:consistent,zone:'warning',drift:median}};
  const mediaLoadSource=(source,reason='initial')=>{const cur=mediaLastState?.current;if(!cur||!mediaPanel.classList.contains('show'))return false;const previousSource=mediaLocalSource,wantsYouTube=source==='youtube'||cur.type==='youtube',tmdbId=cur.tmdbId||(/^\d+$/.test(String(cur.providerId||''))?cur.providerId:''),playerId=/^tt\d+$/i.test(String(cur.providerId||''))?cur.providerId:(cur.tmdbId||cur.providerId);if(!wantsYouTube&&(previousSource==='youtube'||ytPlayer||ytManualCleanup)){destroyYT();resetMediaFrame()}if(source==='cinesrc'&&!tmdbId){mediaLocalSource='cinesrc';return mediaFailover('cinesrc_no_tmdb')}mediaLocalSource=source;mediaRefreshProviderMenu();mediaReadyKey='';mediaLastSyncCorrection=0;mediaSuppressUntil=Date.now()+3000;const playing=cur.playback?.playing!==false,workerStart=Math.floor(mediaExpectedTime(cur)),vixLead=source==='vixsrc'&&playing?Math.max(0,Math.min(12,mediaVixStartupLeadSec)):0,start=Math.floor(workerStart+vixLead),color=String(mediaLastState?.playerConfig?.color||'e50914').replace(/^#/,''),lang=String(mediaLastState?.playerConfig?.sub||'en');if(wantsYouTube){
   const videoId=extractYTIdLocal(cur.providerId);
   mediaLocalSource='youtube';
   initYouTubePlayer(videoId,start,playing);
-}else if(source==='cinesrc'){const params=`autoplay=${playing?1:0}&autonext=0&autoskip=0&t=${start}`;mediaFrame.src=cur.type==='tv'?`https://cinesrc.st/embed/tv/${encodeURIComponent(tmdbId)}?s=${Number(cur.season||1)}&e=${Number(cur.episode||1)}&${params}`:`https://cinesrc.st/embed/movie/${encodeURIComponent(tmdbId)}?${params}`}else if(source==='vixsrc'){mediaVixLoadStartedAt=Date.now();mediaVixStartupMeasured=false;mediaVixDriftSamples=[];const params=`autoplay=${playing?'true':'false'}&startAt=${start}&primaryColor=${encodeURIComponent(color)}&secondaryColor=170000&lang=${encodeURIComponent(lang)}`;mediaFrame.src=cur.type==='tv'?`https://vixsrc.to/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vixsrc.to/movie/${encodeURIComponent(playerId)}?${params}`}else{const params=`autoPlay=${playing?'true':'false'}&startAt=${start}&chromecast=false&nextButton=false&autoNext=false&autoSkip=false&theme=${encodeURIComponent(color)}&sub=${encodeURIComponent(lang)}`;mediaFrame.src=cur.type==='tv'?`https://vidfast.vc/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vidfast.vc/movie/${encodeURIComponent(playerId)}?${params}`}if(source==='youtube' || (typeof cur!=='undefined' && cur && cur.type==='youtube')){
+}else if(source==='cinesrc'){const params=`autoplay=${playing?1:0}&autonext=0&autoskip=0&t=${start}&continueprompt=false`;mediaFrame.src=cur.type==='tv'?`https://cinesrc.st/embed/tv/${encodeURIComponent(tmdbId)}?s=${Number(cur.season||1)}&e=${Number(cur.episode||1)}&${params}`:`https://cinesrc.st/embed/movie/${encodeURIComponent(tmdbId)}?${params}`}else if(source==='vixsrc'){mediaVixLoadStartedAt=Date.now();mediaVixStartupMeasured=false;mediaVixDriftSamples=[];const params=`autoplay=${playing?'true':'false'}&startAt=${start}&primaryColor=${encodeURIComponent(color)}&secondaryColor=170000&lang=${encodeURIComponent(lang)}`;mediaFrame.src=cur.type==='tv'?`https://vixsrc.to/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vixsrc.to/movie/${encodeURIComponent(playerId)}?${params}`}else{const params=`autoPlay=${playing?'true':'false'}&startAt=${start}&chromecast=false&nextButton=false&autoNext=false&autoSkip=false&theme=${encodeURIComponent(color)}&sub=${encodeURIComponent(lang)}`;mediaFrame.src=cur.type==='tv'?`https://vidfast.vc/tv/${encodeURIComponent(playerId)}/${Number(cur.season||1)}/${Number(cur.episode||1)}?${params}`:`https://vidfast.vc/movie/${encodeURIComponent(playerId)}?${params}`}if(source==='youtube' || (typeof cur!=='undefined' && cur && cur.type==='youtube')){
   mediaSyncStatus.textContent=`YouTube • Worker ${Math.floor(start/60)}:${String(start%60).padStart(2,'0')} • Player waiting`;
   clearTimeout(mediaFetchTimer);clearTimeout(mediaFallbackTimer);mediaFetchWarning.classList.remove('show');
-  // No fetch warning timer for YouTube - DevTools message removed per request
+  
   mediaFrame.onload=()=>{dbg('media:iframe-loaded',{source});};
   dbg('media:source-loaded',{source,reason,start});
   return true;
@@ -1237,7 +1236,7 @@ mediaSyncStatus.textContent=`${source==='cinesrc'?'CineSrc':source==='vixsrc'?'V
  const mediaFailover=reason=>{if(mediaLocalSource==='youtube'){ clearTimeout(mediaFallbackTimer); mediaFetchWarning.classList.remove('show'); dbg('media:youtube-error',{reason}); return false;} const currentIndex=mediaProviderOrder.indexOf(mediaLocalSource);mediaProviderIndex=Math.max(mediaProviderIndex,currentIndex)+1;if(mediaProviderIndex<mediaProviderOrder.length)return mediaLoadSource(mediaProviderOrder[mediaProviderIndex],reason);clearTimeout(mediaFallbackTimer);mediaFetchWarning.classList.add('show');dbg('media:all-sources-exhausted',{reason,order:mediaProviderOrder})};
  const applyMediaPlayback=cur=>{const pb=cur?.playback;if(!pb)return;mediaRevision=pb.revision||0;const expected=Math.max(0,mediaExpectedTime(cur));mediaSuppressUntil=Date.now()+2500;if(mediaProviderRace){mediaStartProviderRace();dbg('media:worker-revision-restarted-provider-race',{revision:mediaRevision,time:expected});return}if(mediaLocalSource==='vixsrc')reloadVixAtWorkerTime('worker_revision');else if(mediaLocalSource==='youtube'){ try{ if(ytPlayer){ const drift=Math.abs((ytPlayer.getCurrentTime?.()||0)-expected); if(drift>3) ytPlayer.seekTo(expected,true); if(pb.playing===false) ytPlayer.pauseVideo(); else ytPlayer.playVideo(); } }catch{} }else{mediaCommand('seek',{time:expected});mediaCommand(pb.playing===false?'pause':'play')}dbg('media:worker-revision-applied',{source:mediaLocalSource,revision:mediaRevision,playing:pb.playing!==false,time:expected})};
  const renderMedia=state=>{mediaLastState=state;if(mediaQueueList.classList.contains('show'))renderMediaQueue(state);if(Number.isFinite(Number(state.serverNow))&&Math.abs((Number(state.serverNow)-Date.now())-mediaClockOffset)>2000)mediaClockOffset=Number(state.serverNow)-Date.now();const cur=state.current,main2Visible=mediaPanel.classList.contains('show')&&String(bActiveStream||'').toLowerCase().replace(/\s+/g,'')==='main2';mediaStatus.textContent=cur?`${cur.title}${cur.year?' ('+cur.year+')':''} • by ${cur.requestedBy} • ${state.votes}/${state.required} votes • ${state.queue.length} queued`:'Queue empty';
-  // ─── Confirmation notification - ONLY for next queue requester ───
+  
   try{
     const confirmEl=mediaPanel.querySelector('[data-media-confirm]');
     const confirmText=mediaPanel.querySelector('[data-media-confirm-text]');
@@ -1251,7 +1250,7 @@ mediaSyncStatus.textContent=`${source==='cinesrc'?'CineSrc':source==='vixsrc'?'V
       const ownNext=ownQueue[0];
       const alreadyConfirmed=ownNext && (ownNext.confirmedBy||[]).includes(bGetUser());
       const shouldShow = nowOpen && ownNext && !alreadyConfirmed;
-      // Show notification ONLY if you are the next requester and need to confirm
+      
       if(shouldShow && !prevOpen){
         confirmEl.dataset.open='1';
         confirmEl.classList.add('show');
@@ -1264,9 +1263,9 @@ mediaSyncStatus.textContent=`${source==='cinesrc'?'CineSrc':source==='vixsrc'?'V
           }
         }catch{}
         clearTimeout(confirmEl._hideTimer);
-        // Keep visible until confirmed or window closes - no auto-hide for requester
+        
       } else if(!shouldShow){
-        // Hide if not the requester, or already confirmed, or window closed
+        
         if(!nowOpen || !ownNext || alreadyConfirmed){
           confirmEl.dataset.open=nowOpen?'1':'0';
           if(!shouldShow) confirmEl.classList.remove('show');
@@ -1289,7 +1288,7 @@ mediaSyncStatus.textContent=`${source==='cinesrc'?'CineSrc':source==='vixsrc'?'V
         const pct=Math.max(0,Math.min(100, (1-remaining/180)*100 ));
         confirmBar.style.transform=`scaleX(${pct/100})`;
       }
-      // Update progress bar continuously when shown
+      
       if(shouldShow && confirmProgress){
         const remaining=Math.max(0,Number(state?.remainingSec||0));
         const pct=Math.max(0,Math.min(100, (1-remaining/180)*100 ));
@@ -1325,13 +1324,13 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
  let bws = null, bwsTimer = null, bchatObs = null, bObservedChatBox = null;
  let bChatRetryTimer = null;
  let bid = '';
- let bSelfUser = ''; // resolved from Twitch DOM/storage or Worker snapshot
- let bActiveStream = ''; // tracks which overlay stream is active (empty = native Twitch)
-     let bToken = ''; // HMAC token for ping auth — server-issued, time-limited (optional enhancement)
-     let bTokenTimer = null; // token refresh timer
+ let bSelfUser = ''; 
+ let bActiveStream = ''; 
+     let bToken = ''; 
+     let bTokenTimer = null; 
 
-     // Fetch HMAC token from server (optional — adds ?tok= to pings for extra auth)
-     // Worker accepts ?key= without token, so this is best-effort
+     
+     
      async function bFetchToken() {
          try {
              const r = await fetch(TOKEN_URL, {
@@ -1344,7 +1343,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
                  const d = await r.json();
                  if (d.token) {
                      bToken = d.token;
-                     // Refresh at 75% of TTL to avoid expiry window
+                     
                      const refreshMs = Math.max(60000, (d.expiresIn || 90000) * 0.75);
                      if (bTokenTimer) clearTimeout(bTokenTimer);
                      bTokenTimer = setTimeout(bFetchToken, refreshMs);
@@ -1365,12 +1364,12 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      }
      function bGetCh() { try { return new URL(location.href).pathname.split('/').filter(Boolean)[0]?.toLowerCase() || ''; } catch { return ''; } }
 
-     // Same as old app: bCurrentChannel returns what the user is actually watching
+     
      function bCurrentChannel() { return bActiveStream || bGetCh(); }
 
-     // Extract the real channel name from a stream URL
-     // Same logic as extractTwitchLogin / extractKickSlug / extractAngelthumpChannel
-     // but returns just the channel name (same as how the worker stores "watching")
+     
+     
+     
      function bExtractChannel(url) {
          if (!url) return '';
          if (url.includes('twitch.tv')) return extractTwitchLogin(url) || '';
@@ -1379,24 +1378,24 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          return '';
      }
 
-     // Find the overlay button matching a watching value
-     // Same as old app: SERVER_CHANNELS.find(c => c.name === target)
+     
+     
      function bFindOverlayBtn(channel) {
          if (!channel) return null;
          const target = channel.toLowerCase();
          if (target === 'main 2' || target === 'main2' || target === 'media') return mediaButton;
          const btns = document.querySelectorAll('.custom-stream-btn[data-stream-url]');
-         // Match by button display name first (same as old app name match)
+         
          for (const btn of btns) {
              const name = (btn.dataset.streamName || '').toLowerCase();
              if (name && name === target) return btn;
          }
-         // Partial match on display name
+         
          for (const btn of btns) {
              const name = (btn.dataset.streamName || '').toLowerCase();
              if (name && (name.includes(target) || target.includes(name))) return btn;
          }
-         // Fallback: try matching URL-extracted channel
+         
          for (const btn of btns) {
              const ch = bExtractChannel(btn.dataset.streamUrl);
              if (ch && ch.toLowerCase() === target) return btn;
@@ -1404,19 +1403,19 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          return null;
      }
 
- // Scan only genuinely unprocessed messages. Never reprocess an old message
- // with a newer watch state, otherwise history is rewritten after a switch.
+ 
+ 
  function bRescanChat() {
  const chatBox = document.querySelector('.stream-chat');
  if (!chatBox) return;
- // Firefox/7TV may rerender a message and remove injected children while
- // leaving our data attributes on the message container. Restore from the
- // immutable per-message snapshot, never from the user's newer channel.
+ 
+ 
+ 
  chatBox.querySelectorAll('[data-baj-snapshot-channel][data-baj-processed]').forEach(msg => {
  if (msg.querySelector('.bajsas-watch-badge')) return;
  msg.removeAttribute('data-baj-processed');
- // Snapshot is already known: restore synchronously inside the mutation
- // microtask so Firefox cannot paint a frame without the badge.
+ 
+ 
  bProcess(msg);
  });
  bScan(chatBox);
@@ -1490,8 +1489,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
  bPresenceUsers.set(k, { username:k, watching:ch, online:m.isOnline !== false, lastSeen:incomingTime });
  renderPresence();
  const current = bwm.get(k);
- // A pagehide/offline event from the old stream can arrive immediately before
- // the new watch event. Cancel its pending removal and reject stale updates.
+ 
+ 
  const pendingOffline = bOfflineTimers.get(k);
  if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(k); }
  if (ch && (!current || incomingTime >= current.lastSeen)) {
@@ -1507,7 +1506,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
  clearTimeout(bOfflineTimers.get(k));
  const timer = setTimeout(() => {
  bOfflineTimers.delete(k);
- // Do not delete a newer watch update that arrived after this offline event.
+ 
  const current = bwm.get(k);
  if (!current || current.lastSeen !== snapshotTime) return;
  bwm.delete(k);
@@ -1530,8 +1529,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      let bGameAudioEnabled=localStorage.getItem('bajsas_game_audio')!=='0',bGameAudioCtx=null;
      const bGameTone=(kind='move')=>{if(!bGameAudioEnabled)return;try{bGameAudioCtx||=new (window.AudioContext||window.webkitAudioContext)();const o=bGameAudioCtx.createOscillator(),g=bGameAudioCtx.createGain(),now=bGameAudioCtx.currentTime;const spec={ui:[520,.035],move:[420,.055],capture:[220,.11],start:[660,.14],end:[150,.3],invite:[820,.12]}[kind]||[420,.06];o.frequency.setValueAtTime(spec[0],now);if(kind==='start')o.frequency.exponentialRampToValueAtTime(990,now+spec[1]);g.gain.setValueAtTime(.07,now);g.gain.exponentialRampToValueAtTime(.001,now+spec[1]);o.connect(g).connect(bGameAudioCtx.destination);o.start(now);o.stop(now+spec[1])}catch{}};
      const bGameModal=document.createElement('div');bGameModal.className='bajsas-game-modal';bGameModal.innerHTML='<div class="bajsas-game-window"><div class="bajsas-game-head"><b>⚫ BajSAS Checkers</b><span data-game-side style="font-weight:800;color:#ffd58a">Lobby</span><div style="display:flex;gap:5px"><button class="custom-stream-btn bajsas-game-resize" data-game-resize title="Drag to resize">⤡</button><button class="custom-stream-btn" data-game-close>✕</button></div></div><div class="bajsas-game-controls"><input data-room-name placeholder="Room name" maxlength="32" style="flex:1;min-width:100px;background:#211d18;color:#fff;border:1px solid #8b7759;padding:5px"><select data-room-time title="Time per player"><option value="1">1 min</option><option value="3">3 min</option><option value="5" selected>5 min</option><option value="10">10 min</option><option value="15">15 min</option></select><button class="custom-stream-btn" data-room-create>Create</button><button class="custom-stream-btn bajsas-hidden" data-room-cancel>Cancel Room</button><button class="custom-stream-btn" data-game-audio title="Toggle game sounds">🔊</button><button class="custom-stream-btn" data-room-refresh>↻</button><button class="custom-stream-btn" data-game-back style="display:none">← Lobby</button><span data-game-status>Lobby</span></div><div class="bajsas-lobby" data-room-list><div class="bajsas-lobby-empty">No public rooms yet.<br>Create one to start playing.</div></div><div data-game-play style="display:none"><div class="bajsas-game-board" data-game-board></div><div class="bajsas-game-score"><div class="bajsas-game-player"><div data-red-name>Red</div><div class="bajsas-game-clock" data-red-clock>5:00</div><small data-red-count>12 pieces</small></div><b>VS</b><div class="bajsas-game-player"><div data-black-name>Black</div><div class="bajsas-game-clock" data-black-clock>5:00</div><small data-black-count>12 pieces</small></div></div><div class="bajsas-game-actions"><button class="custom-stream-btn" data-game-draw>Offer Draw</button><button class="custom-stream-btn" data-game-resign>Resign</button><button class="custom-stream-btn" data-room-close>Close Game</button></div></div></div>';targetContainer.appendChild(bGameModal);
-     // The floating panel resizes independently and never changes Twitch's
-     // video layout. Persist the user's preferred dimensions per browser.
+     
+     
      try {
          const savedSize = JSON.parse(localStorage.getItem('bajsas_game_size') || 'null');
          if (savedSize?.width) bGameModal.style.width = Math.max(250, Math.min(520, savedSize.width)) + 'px';
@@ -1543,7 +1542,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          const startX = event.clientX;
          const startWidth = bGameModal.getBoundingClientRect().width;
          const onMove = move => {
-             // The panel is anchored on the right, so dragging left increases it.
+             
              const max = Math.min(520, innerWidth * .75);
              const width = Math.max(250, Math.min(max, startWidth + (startX - move.clientX)));
              bGameModal.style.width = Math.round(width) + 'px';
@@ -1599,7 +1598,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
        pixelGridCtx.beginPath();
        pixelGridCtx.strokeStyle='rgba(0,0,0,.18)';
        pixelGridCtx.lineWidth=0.5;
-       // Fast full grid - O(256) not O(32k) boundary checks
+       
        for(let x=1;x<128;x++){
          const px=Math.floor(x*pixelZoom)+0.5;
          pixelGridCtx.moveTo(px,0);
@@ -1617,7 +1616,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
 
      function pixelTransform(redrawGrid=false){
        const size=128*pixelZoom;
-       // Avoid layout thrash - only update width/height if changed
+       
        if(pixelStage._lastSize!==size){
          pixelStage.style.width=size+'px';
          pixelStage.style.height=size+'px';
@@ -1643,7 +1642,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
        const data=pixelImageData.data;
        const rgbCache=pixelPaletteRGB;
        const pData=pixelData;
-       // Hot loop - 16k pixels, no parseInt
+       
        for(let i=0;i<16384;i++){
          const idx=pData[i];
          const rgb=rgbCache[idx] || rgbCache[0];
@@ -1659,7 +1658,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      function pixelDrawSingle(x,y,colorIdx){
        if(!pixelCtx || x<0 || y<0 || x>=128 || y>=128) return;
        const rgb=pixelPaletteRGB[colorIdx] || pixelPaletteRGB[0];
-       // Fast fillRect path
+       
        pixelCtx.fillStyle=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
        pixelCtx.fillRect(x,y,1,1);
        if(pixelImageData){
@@ -1724,7 +1723,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
 
      const pixelAgo=time=>{const seconds=Math.max(0,Math.floor((Date.now()-Number(time||0))/1000));if(seconds<10)return'just now';if(seconds<60)return seconds+' seconds ago';const minutes=Math.floor(seconds/60);if(minutes<60)return minutes+' minute'+(minutes===1?'':'s')+' ago';const hours=Math.floor(minutes/60);if(hours<24)return hours+' hour'+(hours===1?'':'s')+' ago';const days=Math.floor(hours/24);if(days<30)return days+' day'+(days===1?'':'s')+' ago';const months=Math.floor(days/30);if(months<12)return months+' month'+(months===1?'':'s')+' ago';const years=Math.floor(days/365);return years+' year'+(years===1?'':'s')+' ago';};
 
-     // Optimized hover - cache rect and throttle via rAF
+     
      let pixelCanvasRect=null; let lastHoverX=-1, lastHoverY=-1; let hoverRaf=0;
      const updatePixelRect=()=>{ try{ pixelCanvasRect=pixelCanvas.getBoundingClientRect(); }catch{} };
      const pixelAtEvent=e=>{
@@ -1802,7 +1801,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
        pixelDrag=null;
        pixelView.classList.remove('dragging');
        if(wasClick){ 
-         // Final pan already applied via last move, now select
+         
          pixelSelectAt(e);
        }
        pixelSuppressClick=false;
@@ -1841,22 +1840,22 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
              const tw = bGetUser();
              const payload = { id: bid, version: APP_VERSION, event: ev, twitchUser: tw };
              const body = JSON.stringify(payload);
-             // Auth: send ?key= (always) + ?tok= (if available)
-             // Worker accepts both — key is legacy fallback, tok is HMAC token
+             
+             
              const keyQ = 'key=' + encodeURIComponent(PING_KEY);
              const tokQ = bToken ? '&tok=' + encodeURIComponent(bToken) : '';
              const query = '?' + keyQ + tokQ + '&id=' + encodeURIComponent(bid) + '&version=' + encodeURIComponent(APP_VERSION) + '&event=' + encodeURIComponent(ev) + '&twitchUser=' + encodeURIComponent(tw) + '&t=' + Date.now();
-             // Send one request. The previous implementation fired fetch, an
-             // image beacon, and sendBeacon simultaneously; button handlers also
-             // called bPing twice. That produced up to six writes for one switch
-             // and queued Durable Object storage before the WebSocket update.
-             // Use the image transport only when the primary fetch actually fails.
+             
+             
+             
+             
+             
              dbg('ping:send', { event: ev, twitchUser: tw, id: bid });
              try {
                  fetch(PING_URL + query, {
                      method: 'POST',
-                     // text/plain is a CORS-simple request, avoiding the
-                     // OPTIONS preflight that delayed every channel switch.
+                     
+                     
                      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                      body,
                      keepalive: true,
@@ -1880,14 +1879,14 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          if (pendingOffline) { clearTimeout(pendingOffline); bOfflineTimers.delete(me); }
          bwm.set(me, { channel, lastSeen: now });
          bSaveWatchCache();
-         // Update this browser immediately instead of waiting for the Worker
-         // round trip. The WebSocket echo remains authoritative for everyone else.
+         
+         
          bRefreshUser(me);
      }
 
      function bStartPing() {
-         // One-shot state update only. Repeating heartbeat pings were removed;
- // navigation, stream selection, and tab visibility still send updates.
+         
+ 
  const ch = bCurrentChannel();
  if (ch) {
  const safeCh = ch.slice(0,30).replace(/[^a-zA-Z0-9_\- ]/g,'');
@@ -1898,8 +1897,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      const bMessageTimers = new WeakMap();
      function bQueueProcess(msg, delay = 0) {
          if (!msg || msg.getAttribute('data-baj-processed') || bMessageTimers.has(msg)) return;
-         // Render on the native message frame. Local watch-cache hydration means
-         // normal messages no longer wait for a WebSocket round trip.
+         
+         
          dbg('badge:queue', { delay, snapshot: msg.dataset.bajSnapshotChannel || '', pendingUser: msg.dataset.bajPendingUser || '' });
          const timer = setTimeout(() => {
              bMessageTimers.delete(msg);
@@ -1912,8 +1911,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      const bCanonicalMessage = msg => {
          if (!msg) return null;
          if (msg.classList?.contains('seventv-ban-slider')) return msg.querySelector('.seventv-user-message') || msg;
-         // 7TV can nest its message inside Twitch's native line. Always choose
-         // one canonical owner so two observers cannot inject duplicate badges.
+         
+         
          return msg.querySelector?.('.seventv-user-message') || msg;
      };
 
@@ -1939,8 +1938,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
              return /^[a-z0-9_]{3,25}$/.test(n) ? n : '';
          };
 
-         // Prefer machine-readable login attributes. Display names may contain
-         // Unicode, localized text, badges, or casing that differs from login.
+         
+         
          for (const el of [msg, ...msg.querySelectorAll('[data-user], [data-login], [data-username], [data-a-user]')]) {
              const n = valid(el.dataset?.user || el.dataset?.login || el.dataset?.username || el.getAttribute?.('data-a-user'));
              if (n) { dbg('badge:username-found', { method: 'attribute', username: n }); return n; }
@@ -1986,15 +1985,15 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          return null;
      }
 
-     // Same as old app processMessage — badge shows raw watching value,
-     // click tries overlay first, falls back to new tab
+     
+     
      function bProcess(msg) {
          if (msg.getAttribute('data-baj-processed')) return;
          if (msg.classList?.contains('seventv-ban-slider')) { const inner = msg.querySelector('.seventv-user-message'); if (inner) { bProcess(inner); return; } }
          const username = msg.dataset.bajSnapshotUser || bGetName(msg);
          if (!username) {
-             // Twitch/7TV often inserts the message container in multiple DOM
-             // mutations. Do not permanently mark a half-built message as done.
+             
+             
              const attempts = Number(msg.dataset.bajNameAttempts || 0) + 1;
              msg.dataset.bajNameAttempts = String(attempts);
              dbg('badge:username-not-ready', { attempts });
@@ -2017,8 +2016,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          const watchInfo = bLookupWatch(username);
          const snapshotChannel = msg.dataset.bajSnapshotChannel || '';
          if (!snapshotChannel && (!watchInfo || !watchInfo.channel)) {
-             // Keep only a short-lived pending marker. A watch_update can fill
-             // this message, while old chat history is never rewritten later.
+             
+             
              msg.dataset.bajPendingUser = username;
              msg.dataset.bajPendingAt = String(Date.now());
              dbg('badge:pending-watch-state', { username });
@@ -2027,23 +2026,23 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          delete msg.dataset.bajPendingUser;
          delete msg.dataset.bajPendingAt;
 
-         // Once assigned, this value is the immutable state for this message.
-         // It also lets us reconstruct the badge after a Firefox/7TV rerender.
+         
+         
          const ch = snapshotChannel || watchInfo.channel;
          msg.dataset.bajSnapshotChannel = ch;
          msg.dataset.bajSnapshotUser = username;
-         // Same as old app: includes() for same-channel check
+         
          const currentTwitchChannel = bGetCh();
          const isSame = currentTwitchChannel && ch.toLowerCase().includes(currentTwitchChannel);
 
-         // Find the colon span for badge insertion
+         
          let colonSpan = null;
          for (const sp of msg.querySelectorAll('span')) {
              const t = sp.textContent;
              if ((t === ': ' || t === ':' || t === ':\u00A0') && sp.children.length === 0) { colonSpan = sp; break; }
          }
 
-         // Same badge format as old app
+         
          const badge = document.createElement('span');
          badge.className = 'bajsas-watch-badge';
          badge.dataset.bajUser = username;
@@ -2052,12 +2051,12 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          const timeStr = new Date(watchInfo.lastSeen || Date.now()).toLocaleTimeString();
          badge.title = 'Watching ' + ch + ' since ' + timeStr + ' (click to join) \u2022 BajSAS';
 
-         // Click: try overlay button first, else load in existing overlay iframe
-         // Same as old app: _doLoadStream(found.url, found.name, 'overlay')
-         // Never window.open — keeps 1 overlay on the page
+         
+         
+         
          const handleBadgeAction = () => {
              try {
-                 // Each message keeps the channel captured when it was created.
+                 
                  const found = bFindOverlayBtn(ch);
                  if (found) {
                      found.click();
@@ -2072,7 +2071,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
              } catch(err) { console.warn('[BajSAS] join error', err); }
          };
 
-         // Same event handlers as old app — beat 7TV pointer capture
+         
          badge.addEventListener('pointerdown', (e) => e.stopPropagation(), true);
          badge.addEventListener('click', (e) => {
              e.stopPropagation();
@@ -2097,13 +2096,13 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
              } catch (error) { dbg('badge:display-error', { username, channel: ch, error: String(error) }); }
      }
 
-     // Existing badges are historical snapshots: never rewrite old messages.
-     // Only unprocessed/new messages receive the user's latest channel.
+     
+     
  function bRefreshUser(username) {
  const watchInfo = bwm.get(username);
  if (!watchInfo?.channel) return;
- // Recover only messages that arrived during the current network race window.
- // Existing badges and older history remain immutable.
+ 
+ 
  const now = Date.now();
  document.querySelectorAll('[data-baj-pending-user]').forEach(msg => {
  if (msg.dataset.bajPendingUser !== username) return;
@@ -2117,8 +2116,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
  });
  }
 
-     // When user goes offline, dim their badges but don't remove —
-     // the messages were real, the user WAS watching at that time.
+     
+     
      function bRemoveUser(username) {
          document.querySelectorAll('.bajsas-watch-badge').forEach(b => {
              if (b.dataset.bajUser !== username) return;
@@ -2128,8 +2127,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          });
      }
 
-     // Scan only for messages that do not have a badge yet. Existing message
-     // badges remain immutable historical snapshots.
+     
+     
      function bRefreshAll() {
          bRescanChat();
      }
@@ -2150,10 +2149,10 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          const ch = bGetCh();
          const urlChanged = ch !== bLastCh;
 
-         // A Twitch SPA navigation always means native Twitch. Clear the old
-         // overlay state BEFORE calculating curCh; previously the stale overlay
-         // name could equal bLastProcessedCh and return early, skipping the new
-         // chat observer and watch-state update.
+         
+         
+         
+         
          if (urlChanged) { snakeExit(); bActiveStream = ''; }
          const curCh = bActiveStream || ch;
          if (!urlChanged && curCh === bLastProcessedCh) return;
@@ -2170,9 +2169,9 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
              bPing('watch:' + curCh.slice(0,30));
          }
 
-         // Twitch reconstructs chat during SPA navigation. Invalidate the old
-         // target reference so bStartObs cannot mistake a detached/shell node
-         // for the current chat and scan it repeatedly.
+         
+         
+         
          if (urlChanged && bObservedChatBox && !bObservedChatBox.isConnected) {
              bchatObs?.disconnect();
              bchatObs = null;
@@ -2203,17 +2202,17 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          bchatObs = new MutationObserver((muts) => {
              for (const m of muts) {
                  for (const n of m.addedNodes) bCheckNode(n);
-                 // A framework rerender can remove only our badge. Recover the
-                 // same historical snapshot immediately instead of waiting for
-                 // the 15-second safety scan.
+                 
+                 
+                 
                  const msg = m.target.nodeType === 1
                      ? (m.target.closest?.('[data-baj-snapshot-channel]') || null)
                      : null;
                  if (msg && !msg.querySelector('.bajsas-watch-badge')) {
                      dbg('badge:removed-by-dom-rerender', { username: msg.dataset.bajSnapshotUser || '', channel: msg.dataset.bajSnapshotChannel || '' });
                      msg.removeAttribute('data-baj-processed');
-                     // Restore before the browser's next paint. setTimeout(0)
-                     // caused a visible one-frame blink in Firefox.
+                     
+                     
                      bProcess(msg);
                  }
              }
@@ -2222,20 +2221,20 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
          bScan(chatBox);
      }
 
-     // Hook into stream selector buttons — same as old app handleNavigation
+     
      function bHookButtons() {
          btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]').forEach(btn => {
              btn.addEventListener('click', () => {
                  pixelClose();snakeExit();destroyMediaPlayer();
                  bGameUiEnabled=false;bGameModal.classList.remove('show');
                  if (btn.dataset.streamUrl) {
-                     // Use the button display name (first field before ; in channel list)
-                     // Same as old app: _activeStreamName = name
-                     // e.g. "---Cinema MAIN---" not "krichure"
+                     
+                     
+                     
                      const name = btn.dataset.streamName || '';
                      bActiveStream = name;
                      bLastProcessedCh = name;
-                     // Sanitize same as old app: keep alphanumeric, dash, underscore, space
+                     
                      const safeName = name.slice(0,30).replace(/[^a-zA-Z0-9_\- ]/g,'');
                      bApplyLocalWatch(safeName);
                      bPing('watch:' + safeName);
@@ -2248,20 +2247,20 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
                          bPing('watch:' + ch.slice(0,30));
                      } else bPing('heartbeat');
              }
-             // The branch above already sent the new state exactly once.
+             
              bRefreshAll();
          });
      });
  }
 
-     // Init
+     
      bid = bGetId();
 
-    // Detect which stream is already active on page load.
-    // The initial selection above is made with btn.onclick() before
-    // bHookButtons() is installed, so derive the state from activeBtn too.
-    // Without this, a fresh install that defaults to the first overlay reports
-    // the Twitch page URL until the user clicks a button (or the next poll).
+    
+    
+    
+    
+    
     if (activeBtn?.dataset.streamUrl) {
         bActiveStream = activeBtn.dataset.streamName || savedStream || '';
     } else {
@@ -2269,18 +2268,18 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
     }
     bLastProcessedCh = bCurrentChannel();
 
-    // Install click tracking before starting network synchronization.
+    
     bHookButtons();
 
-    // Start token fetch in background (adds ?tok= to pings when ready).
-    // Fetch the map once now, then again after the initial ping has had time
-    // to reach the worker. Previously the only retry was the 120-second poll.
+    
+    
+    
     bFetchToken();
     bConnectWS();
     bStartObs();
     bStartPing();
 
-     // Safety net: periodic re-scan for messages that didn't get badges
+     
      setInterval(() => { bRescanChat(); }, 15000);
 
      if (window.navigation) window.navigation.addEventListener('navigate', () => setTimeout(bOnNav, 100));
@@ -2288,7 +2287,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      if (titleEl) new MutationObserver(() => { if (bGetCh() !== bLastCh) bOnNav(); }).observe(titleEl, { childList: true, subtree: true });
      window.addEventListener('popstate', bOnNav);
 
-     // Offline ping — send key + token for auth
+     
      function bPingOffline() {
          const tw = bGetUser();
          const payload = { id: bid, version: APP_VERSION, event: 'offline', twitchUser: tw };
@@ -2301,7 +2300,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      window.addEventListener('beforeunload', bPingOffline);
      window.addEventListener('pagehide', bPingOffline);
 
-     // Same as old app: send heartbeat when tab becomes visible
+     
      document.addEventListener('visibilitychange', () => {
          if (!document.hidden) {
              const ch = bCurrentChannel();
