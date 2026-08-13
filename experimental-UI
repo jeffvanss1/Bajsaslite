@@ -20,7 +20,7 @@ javascript:(async function(){
  if (!STANDALONE) { keepNativeTwitchMutedAndPlaying(); console.log('[BajSAS Lite] Native Twitch muted and kept playing for startup'); }
  const WORKER_BASE_URL = STANDALONE ? location.origin : 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
  const APP_VERSION = 'lite 7.0';
- const APP_BUILD = '2026-08-14-native-twitch-mute-only-20';
+ const APP_BUILD = '2026-08-14-twitch-floating-overlays-24';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -162,7 +162,27 @@ javascript:(async function(){
  .bajsas-offline-label { z-index:1; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
  .bajsas-offline-platform { z-index:1; color:#adadb8; font-size:10px; }
  .bajsas-stream-preview-title { display: block; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
- .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; }
+ .bajsas-stream-preview-meta { display: block; color: #adadb8; font-size: 11px; margin-top: 2px; padding-right: 34px; }
+ .bajsas-stream-preview.has-popout { pointer-events: auto; }
+ .bajsas-stream-preview-popout {
+ position:absolute;right:10px;bottom:8px;z-index:3;width:28px;height:28px;padding:0;border:1px solid rgba(255,255,255,.2);border-radius:6px;
+ display:grid;place-items:center;background:#2b2d31;color:#dbdee1;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35);transition:background .12s,color .12s,transform .12s;
+ }
+ .bajsas-stream-preview-popout:hover { background:#5865f2;color:#fff;transform:translateY(-1px); }
+ .bajsas-stream-preview-popout:active { transform:translateY(0) scale(.95); }
+ .bajsas-stream-preview-popout svg { width:15px;height:15px;fill:currentColor;pointer-events:none; }
+ .bajsas-floating-preview-player {
+ position:absolute;z-index:2147483645;box-sizing:border-box;display:grid;grid-template-rows:32px minmax(0,1fr);
+ min-width:260px;min-height:180px;max-width:calc(100% - 16px);max-height:calc(100% - 16px);overflow:hidden;resize:both;
+ border:1px solid rgba(255,255,255,.24);border-radius:9px;background:#0e0e10;box-shadow:0 16px 42px rgba(0,0,0,.68);pointer-events:auto;
+ }
+ .bajsas-floating-preview-head { min-width:0;display:flex;align-items:center;gap:7px;padding:0 5px 0 9px;background:#1e1f22;color:#dbdee1;font:700 11px/1 Arial,sans-serif;cursor:move;user-select:none;touch-action:none; }
+ .bajsas-floating-preview-grip { flex:0 0 auto;color:#72767d;font-size:13px;letter-spacing:-1px; }
+ .bajsas-floating-preview-title { min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+ .bajsas-floating-preview-close { flex:0 0 24px;width:24px;height:24px;padding:0;display:grid;place-items:center;border:0;border-radius:5px;background:transparent;color:#b5bac1;cursor:pointer;font-size:17px;line-height:1; }
+ .bajsas-floating-preview-close:hover { background:#ed4245;color:#fff; }
+ .bajsas-floating-preview-frame { display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;background:#000; }
+ @media (max-width:700px) { .bajsas-floating-preview-player{min-width:220px;min-height:155px}.bajsas-floating-preview-head{height:30px} }
  .bajsas-presence-toggle { position:absolute!important; top:12px; right:12px; z-index:2147483647; pointer-events:auto!important; opacity:1; transform:translate3d(0,0,0); transition:opacity .2s ease,transform .2s ease; background:rgba(20,20,24,.82)!important; border:1px solid rgba(255,255,255,.16)!important; box-shadow:0 5px 18px rgba(0,0,0,.38); }
  .bajsas-presence-toggle.is-idle { opacity:0; transform:translate3d(0,-5px,0); pointer-events:none!important; }
  .stream-container-mod:hover .bajsas-presence-toggle.is-idle,.bajsas-presence-toggle.panel-open { opacity:.88; transform:translate3d(0,0,0); pointer-events:auto!important; }
@@ -671,8 +691,8 @@ javascript:(async function(){
    gamesServerButton.setAttribute('aria-label', 'Games Server');
    gamesServerButton.setAttribute('aria-pressed', 'false');
    gamesServerButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 6h9.6c2 0 3.5 1.3 4 3.2l1.1 5.2c.5 2.2-1.9 3.8-3.7 2.5l-2.4-1.7H8.2l-2.4 1.7c-1.8 1.3-4.2-.3-3.7-2.5l1.1-5.2C3.7 7.3 5.2 6 7.2 6ZM7 9v2H5v2h2v2h2v-2h2v-2H9V9H7Zm8.8 1.1a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Zm2.8 2.8a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Z"/></svg>';
-   streamsServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(); hideMediaHoverPreview(); setDesktopServer('streams'); });
-   gamesServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(); hideMediaHoverPreview(); setDesktopServer('games'); });
+   streamsServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(true); hideMediaHoverPreview(true); setDesktopServer('streams'); });
+   gamesServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(true); hideMediaHoverPreview(true); setDesktopServer('games'); });
    serverRail.append(streamsServerButton, gamesServerButton);
    box.appendChild(serverRail);
    setDesktopServer('streams');
@@ -741,8 +761,8 @@ javascript:(async function(){
      pinnedChannelKeys = pinned ? pinnedChannelKeys.filter(savedKey => savedKey !== key) : [key,...pinnedChannelKeys.filter(savedKey => savedKey !== key)];
      persistChannelPins();
      render();
-     hideButtonPreview();
-     hideMediaHoverPreview();
+     hideButtonPreview(true);
+     hideMediaHoverPreview(true);
      sortStreamChannelsByLive();
      dbg('sidebar:channel-pin',{channel:channelName,pinned:!pinned,order:[...pinnedChannelKeys]});
    };
@@ -781,7 +801,7 @@ javascript:(async function(){
  };
  const isBajsasInterfaceButton = button => {
  if (!button) return false;
- if (STANDALONE || wrapper.contains(button) || button.matches?.('.bajsas-watch-badge')) return true;
+ if (STANDALONE || wrapper.contains(button) || button.matches?.('.bajsas-watch-badge,.bajsas-stream-preview-popout')) return true;
  return Boolean(button.closest('.bajsas-game-modal,.bajsas-pixel,.bajsas-snake,.bajsas-media-queue-list'));
  };
  const playInterfaceButtonSound = button => {
@@ -825,6 +845,84 @@ javascript:(async function(){
  return `${playerUrl}${connector}autoplay=1&muted=0`;
  };
 
+ let floatingPreviewSequence = 0;
+ let floatingPreviewZ = 2147483000;
+ const floatingPreviewPlayers = new Set();
+ const bringFloatingPreviewToFront = overlay => {
+   if (!overlay) return;
+   if (floatingPreviewZ >= 2147483644) {
+     floatingPreviewZ = 2147483000;
+     for (const player of floatingPreviewPlayers) player.style.zIndex = String(++floatingPreviewZ);
+   }
+   overlay.style.zIndex = String(++floatingPreviewZ);
+ };
+ const clampFloatingPreview = (overlay, left, top) => {
+   const maxLeft = Math.max(8, wrapper.clientWidth - overlay.offsetWidth - 8);
+   const maxTop = Math.max(8, wrapper.clientHeight - overlay.offsetHeight - 8);
+   overlay.style.left = Math.max(8, Math.min(maxLeft, left)) + 'px';
+   overlay.style.top = Math.max(8, Math.min(maxTop, top)) + 'px';
+ };
+ const openPreviewOverlayPlayer = (name, playerUrl) => {
+ if (!playerUrl) return false;
+ try {
+   const overlay = document.createElement('section');
+   overlay.className = 'bajsas-floating-preview-player';
+   overlay.dataset.floatingPreviewPlayer = '1';
+   overlay.dataset.previewSequence = String(++floatingPreviewSequence);
+   overlay.setAttribute('aria-label', `${name || 'BajSAS'} floating preview player`);
+   const header = document.createElement('div');
+   header.className = 'bajsas-floating-preview-head';
+   const grip = document.createElement('span'); grip.className = 'bajsas-floating-preview-grip'; grip.textContent = '•••'; grip.setAttribute('aria-hidden','true');
+   const title = document.createElement('span'); title.className = 'bajsas-floating-preview-title'; title.textContent = name || 'BajSAS Player';
+   const close = document.createElement('button'); close.type = 'button'; close.className = 'bajsas-floating-preview-close'; close.textContent = '×'; close.title = `Close ${name || 'channel'} overlay player`; close.setAttribute('aria-label', close.title);
+   const frame = document.createElement('iframe');
+   frame.className = 'bajsas-floating-preview-frame';
+   frame.src = playerUrl;
+   frame.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
+   frame.allowFullscreen = true;
+   frame.referrerPolicy = 'origin';
+   frame.title = `${name || 'BajSAS'} preview player`;
+   header.append(grip,title,close); overlay.append(header,frame); wrapper.appendChild(overlay); floatingPreviewPlayers.add(overlay); bringFloatingPreviewToFront(overlay);
+   const availableWidth = Math.max(240, wrapper.clientWidth - 16), width = Math.min(420, Math.max(280, Math.round(wrapper.clientWidth * .38)), availableWidth);
+   const height = Math.min(Math.max(180, Math.round(width * 9 / 16) + 32), Math.max(180, wrapper.clientHeight - 16));
+   overlay.style.width = width + 'px'; overlay.style.height = height + 'px';
+   const offset = ((floatingPreviewSequence - 1) % 6) * 22;
+   clampFloatingPreview(overlay, wrapper.clientWidth - width - 16 - offset, 16 + offset);
+   const closeOverlay = () => { try { frame.src = 'about:blank'; } catch {} floatingPreviewPlayers.delete(overlay); overlay.remove(); dbg('preview:overlay-closed',{name,remaining:floatingPreviewPlayers.size}) };
+   close.addEventListener('click', () => closeOverlay());
+   overlay.addEventListener('pointerdown', () => bringFloatingPreviewToFront(overlay));
+   header.addEventListener('pointerdown', event => {
+     if (event.button !== 0 || event.target.closest('button')) return;
+     event.preventDefault(); bringFloatingPreviewToFront(overlay);
+     const overlayRect = overlay.getBoundingClientRect(), wrapperRect = wrapper.getBoundingClientRect(), offsetX = event.clientX - overlayRect.left, offsetY = event.clientY - overlayRect.top;
+     const move = moveEvent => { if (moveEvent.pointerId !== event.pointerId) return; clampFloatingPreview(overlay, moveEvent.clientX - wrapperRect.left - offsetX, moveEvent.clientY - wrapperRect.top - offsetY); };
+     const finish = finishEvent => { if (finishEvent.pointerId !== event.pointerId) return; header.removeEventListener('pointermove',move); header.removeEventListener('pointerup',finish); header.removeEventListener('pointercancel',finish); try { header.releasePointerCapture(event.pointerId); } catch {} };
+     header.setPointerCapture(event.pointerId); header.addEventListener('pointermove',move); header.addEventListener('pointerup',finish); header.addEventListener('pointercancel',finish);
+   });
+   dbg('preview:overlay-opened', { name, playerUrl, count: floatingPreviewPlayers.size });
+   return true;
+ } catch (error) {
+   dbg('preview:overlay-error', { name, error: String(error) });
+   return false;
+ }
+ };
+ const appendPreviewPopout = (card, name, getPlayerUrl, onOpened) => {
+ card.classList.add('has-popout');
+ const button = document.createElement('button');
+ button.type = 'button';
+ button.className = 'bajsas-stream-preview-popout';
+ button.title = `Open ${name || 'channel'} floating overlay player`;
+ button.setAttribute('aria-label', button.title);
+ button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7h-2V6.41l-8.29 8.3-1.42-1.42L17.59 5H14V3ZM5 5h6v2H7v10h10v-4h2v6H5V5Z"/></svg>';
+ button.addEventListener('click', event => {
+ event.preventDefault(); event.stopPropagation();
+ const playerUrl = typeof getPlayerUrl === 'function' ? getPlayerUrl() : getPlayerUrl;
+ if (openPreviewOverlayPlayer(name, playerUrl)) onOpened?.();
+ });
+ card.appendChild(button);
+ return button;
+ };
+
  const updateBtnLiveUI = async (btn, url, desc, name) => {
  const live = await checkLiveStatus(url);
  btn.classList.toggle('is-live', live);
@@ -838,14 +936,31 @@ javascript:(async function(){
  let buttonPreviewCard = null;
  let mediaHoverCard = null;
  let mediaHoverToken = 0;
- const hideMediaHoverPreview = () => {
-   const token = ++mediaHoverToken;
-   if (!mediaHoverCard) return;
-   mediaHoverCard.classList.remove('show');
-   setTimeout(() => { if (token === mediaHoverToken && mediaHoverCard) mediaHoverCard.style.display = 'none'; }, 190);
+ let mediaHoverDismissToken = 0;
+ let mediaHoverPointerInside = false;
+ let mediaHoverHideTimer = null;
+ const keepMediaHoverPreviewVisible = () => {
+   mediaHoverPointerInside = true;
+   clearTimeout(mediaHoverHideTimer);
+   ++mediaHoverDismissToken;
+   if (mediaHoverCard) { mediaHoverCard.style.display = 'block'; mediaHoverCard.classList.add('show'); }
+ };
+ const hideMediaHoverPreview = (immediate = false) => {
+   clearTimeout(mediaHoverHideTimer);
+   const dismiss = () => {
+     if (!immediate && (mediaHoverPointerInside || mediaHoverCard?.matches(':hover'))) return;
+     const token = ++mediaHoverDismissToken;
+     ++mediaHoverToken;
+     if (!mediaHoverCard) return;
+     mediaHoverCard.classList.remove('show');
+     setTimeout(() => { if (token === mediaHoverDismissToken && mediaHoverCard) mediaHoverCard.style.display = 'none'; }, 190);
+   };
+   if (immediate) dismiss(); else mediaHoverHideTimer = setTimeout(dismiss, 320);
  };
  let buttonPreviewTimer = null;
  let buttonPreviewToken = 0;
+ let buttonPreviewDismissToken = 0;
+ let buttonPreviewPointerInside = false;
  let buttonPreviewVisibleUrl = '';
  let buttonPreviewRefreshTimer = null;
  const buttonPreviewCache = new Map();
@@ -953,11 +1068,22 @@ javascript:(async function(){
  else setTimeout(start, 500);
  };
 
- const hideButtonPreview = () => {
- clearTimeout(buttonPreviewTimer); clearTimeout(buttonPreviewRefreshTimer); const token = ++buttonPreviewToken;
+ const keepButtonPreviewVisible = () => {
+ buttonPreviewPointerInside = true;
+ clearTimeout(buttonPreviewTimer);
+ ++buttonPreviewDismissToken;
+ if (buttonPreviewCard) { buttonPreviewCard.style.display = 'block'; buttonPreviewCard.classList.add('show'); }
+ };
+ const hideButtonPreview = (immediate = false) => {
+ clearTimeout(buttonPreviewTimer);
+ const dismiss = () => {
+ if (!immediate && (buttonPreviewPointerInside || buttonPreviewCard?.matches(':hover'))) return;
+ clearTimeout(buttonPreviewRefreshTimer); ++buttonPreviewToken; const token = ++buttonPreviewDismissToken;
  if (!buttonPreviewCard) return;
  buttonPreviewCard.classList.remove('show');
- setTimeout(() => { if (token === buttonPreviewToken) buttonPreviewCard.style.display = 'none'; }, 190);
+ setTimeout(() => { if (token === buttonPreviewDismissToken) buttonPreviewCard.style.display = 'none'; }, 190);
+ };
+ if (immediate) dismiss(); else buttonPreviewTimer = setTimeout(dismiss, 320);
  };
 
  const makeStatusBanner = (platform, state = 'offline') => {
@@ -978,7 +1104,7 @@ javascript:(async function(){
  banner.append(icon, label, source); return banner;
  };
 
- const renderButtonPreview = (name, data) => {
+ const renderButtonPreview = (name, url, data) => {
  buttonPreviewCard.replaceChildren();
  
  
@@ -995,15 +1121,22 @@ javascript:(async function(){
  const state = data.live === true ? ' • LIVE' : data.live === false ? ' • OFFLINE' : '';
  meta.textContent = data.platform + state;
  buttonPreviewCard.append(title, meta);
+ appendPreviewPopout(buttonPreviewCard, name, () => formatUrl(url), () => hideButtonPreview(true));
  };
 
  const showButtonPreview = (btn, name, url) => {
+ if (!matchMedia('(hover:hover) and (pointer:fine)').matches) return;
  dbg('preview:show', { name, url });
- clearTimeout(buttonPreviewTimer); const token = ++buttonPreviewToken; const rect = btn.getBoundingClientRect();
+ clearTimeout(buttonPreviewTimer); buttonPreviewPointerInside = false; ++buttonPreviewDismissToken; const token = ++buttonPreviewToken; const rect = btn.getBoundingClientRect();
  buttonPreviewTimer = setTimeout(async () => {
- if (!buttonPreviewCard) { buttonPreviewCard = document.createElement('div'); buttonPreviewCard.className = 'bajsas-stream-preview'; document.body.appendChild(buttonPreviewCard); }
+ if (!buttonPreviewCard) {
+ buttonPreviewCard = document.createElement('div'); buttonPreviewCard.className = 'bajsas-stream-preview';
+ buttonPreviewCard.addEventListener('pointerenter', keepButtonPreviewVisible);
+ buttonPreviewCard.addEventListener('pointerleave', () => { buttonPreviewPointerInside = false; hideButtonPreview(); });
+ document.body.appendChild(buttonPreviewCard);
+ }
  const cached = buttonPreviewCache.get(url)?.data;
- renderButtonPreview(name, cached || { title: name, platform: 'Stream', image: '', loading: true });
+ renderButtonPreview(name, url, cached || { title: name, platform: 'Stream', image: '', loading: true });
  buttonPreviewVisibleUrl = url;
  buttonPreviewCard.style.display = 'block';
  const panelRect = btn.closest('#custom-stream-ui')?.getBoundingClientRect() || rect;
@@ -1018,7 +1151,7 @@ javascript:(async function(){
  const data = cached || await getButtonPreview(name, url);
  if (token !== buttonPreviewToken || buttonPreviewVisibleUrl !== url) return;
  if (data.image && data.live !== false) await Promise.race([preloadPreviewImage(data.image), new Promise(resolve => setTimeout(resolve, 250))]);
- if (token === buttonPreviewToken) renderButtonPreview(name, data);
+ if (token === buttonPreviewToken) renderButtonPreview(name, url, data);
  
  
  const previewRefreshMs = url.includes('kick.com') ? 10000 : url.includes('angelthump.com') ? 15000 : 0;
@@ -1029,7 +1162,7 @@ javascript:(async function(){
  const fresh = await getButtonPreview(name, url);
  if (token !== buttonPreviewToken) return;
  if (fresh.image) await Promise.race([preloadPreviewImage(fresh.image), new Promise(resolve => setTimeout(resolve, 250))]);
- if (token === buttonPreviewToken) renderButtonPreview(name, fresh);
+ if (token === buttonPreviewToken) renderButtonPreview(name, url, fresh);
  buttonPreviewRefreshTimer = setTimeout(refresh, previewRefreshMs);
  };
  buttonPreviewRefreshTimer = setTimeout(refresh, previewRefreshMs);
@@ -1119,7 +1252,7 @@ javascript:(async function(){
 
  if (!isNative && src) {
  btn.addEventListener('mouseenter', () => showButtonPreview(btn, text, src));
- btn.addEventListener('mouseleave', hideButtonPreview);
+ btn.addEventListener('mouseleave', () => hideButtonPreview());
  updateBtnLiveUI(btn, src, desc, text);
  }
  installChannelPinControl(btn,text);
@@ -1464,7 +1597,7 @@ javascript:(async function(){
  const mediaPanel=document.createElement('div');mediaPanel.className='bajsas-media';mediaPanel.innerHTML='<iframe allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe><div class="bajsas-media-loader" data-media-loader aria-hidden="true"><img src="https://cdn.7tv.app/emote/01GQ117GK8000F8SBVNAFDHMR9/4x.avif" alt="" loading="eager" decoding="async" fetchpriority="high"></div><div class="bajsas-media-lock" data-media-sync-status>Sync waiting…</div><div class="bajsas-media-confirm" data-media-confirm><div class="bajsas-media-confirm-title">🔔 Confirmation Open!</div><div class="bajsas-media-confirm-sub" data-media-confirm-text>Final 3 minutes - confirm your next request</div><div class="bajsas-media-confirm-actions" data-media-confirm-actions></div><div class="bajsas-media-confirm-progress" data-media-confirm-progress style="display:none"><i data-media-confirm-bar></i></div><button type="button" class="custom-stream-btn" style="position:absolute;right:8px;top:8px;padding:2px 6px;font-size:11px" data-media-confirm-close>✕</button></div><div class="bajsas-media-fetch-warning" data-media-fetch-warning><button type="button" data-media-warning-close aria-label="Close">✕</button>Player is taking too long to load. Close DevTools/Console, then close and reopen MAIN 2.</div><div class="bajsas-media-bar"><input placeholder="IMDb link/ID, TMDB ID, TV ID season episode, or YouTube link"><button class="custom-stream-btn" data-media-add>Request</button><button class="custom-stream-btn" data-media-vote>Vote Skip</button><span class="bajsas-media-queue" data-media-status>No media</span><div class="bajsas-media-provider-wrap"><button type="button" class="custom-stream-btn bajsas-media-provider-toggle" data-media-provider-toggle disabled>Switch Provider ▾</button><div class="bajsas-media-provider-menu" data-media-provider-menu role="menu" aria-label="Local provider selection"><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="vixsrc">VixSrc</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="vixsrc" title="Prioritize VixSrc locally" aria-label="Prioritize VixSrc locally">☆</button></div><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="cinesrc">CineSrc</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="cinesrc" title="Prioritize CineSrc locally" aria-label="Prioritize CineSrc locally">☆</button></div><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="vidfast">VidFast</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="vidfast" title="Prioritize VidFast locally" aria-label="Prioritize VidFast locally">☆</button></div></div></div><button class="custom-stream-btn" data-media-close>✕</button></div>';wrapper.appendChild(mediaPanel);
  const mediaButton=document.createElement('button');mediaButton.className='custom-stream-btn is-live';const mediaChannelIcon=document.createElement('span');mediaChannelIcon.className='bajsas-channel-icon';mediaChannelIcon.textContent='#';mediaChannelIcon.setAttribute('aria-hidden','true');const mediaLiveDot=document.createElement('span');mediaLiveDot.className='live-dot';const mediaButtonName=document.createElement('span');mediaButtonName.className='btn-name';mediaButtonName.textContent='MAIN 2';const mediaPopularityUpvote=document.createElement('span');mediaPopularityUpvote.className='bajsas-popularity-upvote';mediaPopularityUpvote.dataset.popularityMarker='1';mediaPopularityUpvote.title='Most popular channel right now';mediaPopularityUpvote.setAttribute('aria-label','Most popular channel right now');mediaPopularityUpvote.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3.5 12h5v9h7v-9h5L12 3z"/></svg>';mediaButton.append(mediaChannelIcon,mediaLiveDot,mediaButtonName,mediaPopularityUpvote);mediaButton.title='Media Share watch party — LIVE';mediaButton.dataset.mediaChannel='1';mediaButton.dataset.bajsasServer='streams';mediaButton.dataset.channelPinKey=makeChannelPinKey('streams','MAIN 2');mediaButton.dataset.liveState='live';installChannelPinControl(mediaButton,'MAIN 2');const mainButton=[...btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]')].find(button=>(button.dataset.streamName||'').toLowerCase()==='main');const mainOrder=Number(mainButton?.dataset.streamOrder);mediaButton.dataset.streamOrder=String(Number.isFinite(mainOrder)?mainOrder+.5:streamButtonOrder++);if(mainButton)mainButton.insertAdjacentElement('afterend',mediaButton);else btnRow.appendChild(mediaButton);sortStreamChannelsByLive();
  let mediaFrame=mediaPanel.querySelector('iframe');const mediaInput=mediaPanel.querySelector('input'),mediaStatus=mediaPanel.querySelector('[data-media-status]'),mediaFetchWarning=mediaPanel.querySelector('[data-media-fetch-warning]'),mediaSyncStatus=mediaPanel.querySelector('[data-media-sync-status]'),mediaProviderToggle=mediaPanel.querySelector('[data-media-provider-toggle]'),mediaProviderMenu=mediaPanel.querySelector('[data-media-provider-menu]'),mediaLoader=mediaPanel.querySelector('[data-media-loader]');let mediaFetchTimer=null,mediaFallbackTimer=null;const createMediaFrame=()=>{const frame=document.createElement('iframe');frame.allow='autoplay; fullscreen; encrypted-media; picture-in-picture';frame.setAttribute('allowfullscreen','');mediaPanel.prepend(frame);return frame};const mediaQueueList=document.createElement('div');mediaQueueList.className='bajsas-media-queue-list';document.body.appendChild(mediaQueueList);let mediaCurrentId='',mediaCurrentServer='',mediaCurrentProvider='',mediaAttemptId='',mediaAttemptStartedAt=0,mediaReadyKey='',mediaRevision=0,mediaSuppressUntil=0,mediaClockOffset=0,mediaLastState=null,mediaLastObservedTime=-1,mediaLastAdvancedAt=Date.now(),mediaBufferReportedKey='',mediaLastSyncCorrection=0,mediaSyncIgnoreUntil=0,mediaSeekAttemptKey='',mediaWarningDismissed=false,mediaLocalSource='vixsrc';
- refreshMain2Player=()=>{const cur=mediaFrame?.src;if(!cur||cur==='about:blank')return false;mediaFrame.src='about:blank';setTimeout(()=>{if(mediaFrame?.isConnected)mediaFrame.src=cur},50);return true};
+ refreshMain2Player=()=>{const cur=mediaLastState?.current;if(!cur||!mediaPanel.classList.contains('show'))return false;if(mediaProviderRace)return mediaStartProviderRace();const source=cur.type==='youtube'?'youtube':mediaLocalSource;return mediaLoadSource(source,'manual_refresh_resync')};
  const mediaSetLoading=show=>mediaLoader.classList.toggle('show',Boolean(show));let mediaDirectPlaybackEvidence={playbackSamples:new Map(),expectPlaying:true};
  const MEDIA_PROVIDER_LOCAL_PRIORITY_KEY='bajsas_main2_local_provider_priority',mediaProviderSources=['vixsrc','cinesrc','vidfast'];
  const mediaProviderDisplayName=source=>source==='vixsrc'?'VixSrc':source==='cinesrc'?'CineSrc':source==='vidfast'?'VidFast':source==='youtube'?'YouTube':'Provider';
@@ -1807,8 +1940,26 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
  document.addEventListener('pointerdown',event=>{if(mediaProviderMenu.classList.contains('show')&&!mediaProviderWrap.contains(event.target))mediaProviderMenu.classList.remove('show')},true);
  document.addEventListener('keydown',event=>{if(event.key==='Escape')mediaProviderMenu.classList.remove('show')});
 
- mediaButton.onclick=()=>{hideMediaHoverPreview();pixelClose();snakeExit();destroyMediaPlayer();box.classList.add('bajsas-main2-selector');restoreMain2SelectorY();bGameUiEnabled=false;bGameModal.classList.remove('show');keepNativeTwitchMutedAndPlaying();i.src='';i.style.display='none';bActiveStream='MAIN 2';bLastProcessedCh='MAIN 2';bPing('watch:MAIN 2');bRefreshChatUser(bGetUser());mediaPanel.classList.add('show');mediaSetLoading(true);syncMediaClock();sendMedia({type:'media_get'});setActive(mediaButton)};mediaPanel.querySelector('[data-media-close]').onclick=()=>nativeBtn.click();mediaPanel.querySelector('[data-media-add]').onclick=()=>{if(mediaInput.value.trim()){sendMedia({type:'media_request',query:mediaInput.value.trim()});mediaInput.value=''}};mediaPanel.querySelector('[data-media-vote]').onclick=()=>sendMedia({type:'media_vote_skip'});
- mediaButton.addEventListener('mouseenter',()=>{const cur=mediaLastState?.current;if(!cur)return;hideButtonPreview();const token=++mediaHoverToken;if(!mediaHoverCard){mediaHoverCard=document.createElement('div');mediaHoverCard.className='bajsas-stream-preview';mediaHoverCard.dataset.main2Preview='1';document.body.appendChild(mediaHoverCard)}mediaHoverCard.replaceChildren();if(cur.poster){const img=document.createElement('img');img.src=cur.poster;img.alt='';mediaHoverCard.appendChild(img)}const title=document.createElement('div');title.className='bajsas-stream-preview-title';title.textContent=cur.title+(cur.year?' ('+cur.year+')':'');const meta=document.createElement('div');meta.className='bajsas-stream-preview-meta';meta.textContent='Now playing • requested by '+cur.requestedBy;mediaHoverCard.append(title,meta);const r=mediaButton.getBoundingClientRect();mediaHoverCard.style.display='block';const panelRect=mediaButton.closest('#custom-stream-ui')?.getBoundingClientRect()||r;const cardRect=mediaHoverCard.getBoundingClientRect(),previewGap=10,maxPreviewLeft=Math.max(8,innerWidth-cardRect.width-8);let previewLeft=panelRect.right+previewGap;if(previewLeft+cardRect.width>innerWidth-8)previewLeft=panelRect.left-cardRect.width-previewGap;mediaHoverCard.style.left=Math.max(8,Math.min(maxPreviewLeft,previewLeft))+'px';mediaHoverCard.style.top=Math.max(8,Math.min(innerHeight-cardRect.height-8,r.top))+'px';requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===mediaHoverToken)mediaHoverCard.classList.add('show')}))});mediaButton.addEventListener('mouseleave',hideMediaHoverPreview);
+ mediaButton.onclick=()=>{hideMediaHoverPreview(true);pixelClose();snakeExit();destroyMediaPlayer();box.classList.add('bajsas-main2-selector');restoreMain2SelectorY();bGameUiEnabled=false;bGameModal.classList.remove('show');keepNativeTwitchMutedAndPlaying();i.src='';i.style.display='none';bActiveStream='MAIN 2';bLastProcessedCh='MAIN 2';bPing('watch:MAIN 2');bRefreshChatUser(bGetUser());mediaPanel.classList.add('show');mediaSetLoading(true);syncMediaClock();sendMedia({type:'media_get'});setActive(mediaButton)};mediaPanel.querySelector('[data-media-close]').onclick=()=>nativeBtn.click();mediaPanel.querySelector('[data-media-add]').onclick=()=>{if(mediaInput.value.trim()){sendMedia({type:'media_request',query:mediaInput.value.trim()});mediaInput.value=''}};mediaPanel.querySelector('[data-media-vote]').onclick=()=>sendMedia({type:'media_vote_skip'});
+ const mediaPreviewPopoutUrl=()=>{const cur=mediaLastState?.current;if(!cur)return'';const playing=cur.playback?.playing!==false,workerStart=Math.floor(mediaExpectedTime(cur));if(cur.type==='youtube'){const videoId=extractYTIdLocal(cur.providerId);return videoId?`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=${playing?1:0}&mute=0&playsinline=1&rel=0&iv_load_policy=3&start=${workerStart}`:''}const source=['cinesrc','vixsrc','vidfast'].includes(mediaLocalSource)?mediaLocalSource:'vixsrc',vixLead=source==='vixsrc'&&playing?Math.max(0,Math.min(12,mediaVixStartupLeadSec)):0;return mediaProviderEmbedUrl(source,cur,Math.floor(workerStart+vixLead),playing)};
+ mediaButton.addEventListener('mouseenter',()=>{
+ if(!matchMedia('(hover:hover) and (pointer:fine)').matches)return;
+ const cur=mediaLastState?.current;if(!cur)return;hideButtonPreview();mediaHoverPointerInside=false;++mediaHoverDismissToken;const token=++mediaHoverToken;
+ if(!mediaHoverCard){
+ mediaHoverCard=document.createElement('div');mediaHoverCard.className='bajsas-stream-preview';mediaHoverCard.dataset.main2Preview='1';
+ mediaHoverCard.addEventListener('pointerenter',keepMediaHoverPreviewVisible);
+ mediaHoverCard.addEventListener('pointerleave',()=>{mediaHoverPointerInside=false;hideMediaHoverPreview()});
+ document.body.appendChild(mediaHoverCard)
+ }
+ mediaHoverCard.replaceChildren();
+ if(cur.poster){const img=document.createElement('img');img.src=cur.poster;img.alt='';mediaHoverCard.appendChild(img)}
+ const title=document.createElement('div');title.className='bajsas-stream-preview-title';title.textContent=cur.title+(cur.year?' ('+cur.year+')':'');
+ const meta=document.createElement('div');meta.className='bajsas-stream-preview-meta';meta.textContent='Now playing • requested by '+cur.requestedBy;
+ mediaHoverCard.append(title,meta);
+ appendPreviewPopout(mediaHoverCard,cur.title,mediaPreviewPopoutUrl,()=>hideMediaHoverPreview(true));
+ const r=mediaButton.getBoundingClientRect();mediaHoverCard.style.display='block';const panelRect=mediaButton.closest('#custom-stream-ui')?.getBoundingClientRect()||r;const cardRect=mediaHoverCard.getBoundingClientRect(),previewGap=10,maxPreviewLeft=Math.max(8,innerWidth-cardRect.width-8);let previewLeft=panelRect.right+previewGap;if(previewLeft+cardRect.width>innerWidth-8)previewLeft=panelRect.left-cardRect.width-previewGap;mediaHoverCard.style.left=Math.max(8,Math.min(maxPreviewLeft,previewLeft))+'px';mediaHoverCard.style.top=Math.max(8,Math.min(innerHeight-cardRect.height-8,r.top))+'px';requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===mediaHoverToken)mediaHoverCard.classList.add('show')}))
+ });
+ mediaButton.addEventListener('mouseleave',()=>hideMediaHoverPreview());
  let bws = null, bwsTimer = null;
  let bid = '';
  let bSelfUser = ''; 
