@@ -12,7 +12,7 @@ javascript:(async function(){
  if (!STANDALONE) { v.muted = true; console.log('[BajSAS Lite] Native Twitch muted for startup'); }
  const WORKER_BASE_URL = STANDALONE ? location.origin : 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
  const APP_VERSION = 'lite 7.0';
- const APP_BUILD = '2026-08-13-desktop-popularity-games-12';
+ const APP_BUILD = '2026-08-14-all-button-sounds-15';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -116,17 +116,11 @@ javascript:(async function(){
  width:7px;
  height:7px;
  border-radius:50%;
- background:#ff1744;
- box-shadow:0 0 0 rgba(255,23,68,.7);
- animation:livePulse 1.2s ease-out infinite;
+ background:#ed4245;
+ box-shadow:0 0 0 2px rgba(237,66,69,.22);
+ animation:none;
  }
  .is-live .live-dot { display:inline-block; }
- @keyframes livePulse {
- 0% { box-shadow:0 0 0 0 rgba(255,23,68,.72); }
- 70% { box-shadow:0 0 0 6px rgba(255,23,68,0); }
- 100% { box-shadow:0 0 0 0 rgba(255,23,68,0); }
- }
- @media(prefers-reduced-motion:reduce){.live-dot{animation:none;box-shadow:0 0 4px rgba(255,23,68,.75)}}
 
  .bajsas-watch-badge {
  display:inline!important;color:#bf94ff!important;font-size:11px!important;font-weight:600!important;
@@ -290,7 +284,7 @@ javascript:(async function(){
  html:not([data-bajsas-standalone="1"]) #custom-stream-ui .bajsas-popularity-upvote svg {display:block;width:15px;height:15px;fill:currentColor}
  html:not([data-bajsas-standalone="1"]) #custom-stream-ui .custom-stream-btn.is-most-popular .bajsas-popularity-upvote {display:grid}
  html:not([data-bajsas-standalone="1"]) #custom-stream-ui .live-dot {
-   order:4;display:none;flex:0 0 8px!important;width:8px!important;height:8px!important;margin-left:auto;background:#23a559;box-shadow:0 0 0 2px #2b2d31;
+   order:4;display:none;flex:0 0 8px!important;width:8px!important;height:8px!important;margin-left:auto;background:#ed4245;box-shadow:0 0 0 2px #2b2d31;animation:none;
  }
  html:not([data-bajsas-standalone="1"]) #custom-stream-ui .custom-stream-btn.is-most-popular .live-dot {margin-left:0}
  html:not([data-bajsas-standalone="1"]) #custom-stream-ui .is-live .live-dot {display:inline-block}
@@ -616,7 +610,7 @@ javascript:(async function(){
 
  const label = document.createElement('div');
  label.className = 'bajsas-channel-header';
- label.innerText = 'BajSAS Streams';
+ label.innerText = 'bestest creatures allowed';
  label.style.cssText = 'font-size:11px;font-weight:bold;text-transform:uppercase;opacity:0.72;letter-spacing:0.5px;line-height:18px;display:flex;align-items:center;gap:4px;';
  box.appendChild(label);
 
@@ -633,7 +627,7 @@ javascript:(async function(){
    activeDesktopServer = next;
    box.dataset.bajsasActiveServer = next;
    box.classList.toggle('bajsas-server-games', next === 'games');
-   label.innerText = next === 'games' ? 'BajSAS Games' : 'BajSAS Streams';
+   label.innerText = next === 'games' ? 'BajSAS Games' : 'bestest creatures allowed';
    if (streamsServerButton) {
      streamsServerButton.classList.toggle('is-active', next === 'streams');
      streamsServerButton.setAttribute('aria-pressed', String(next === 'streams'));
@@ -665,8 +659,8 @@ javascript:(async function(){
    gamesServerButton.setAttribute('aria-label', 'Games Server');
    gamesServerButton.setAttribute('aria-pressed', 'false');
    gamesServerButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 6h9.6c2 0 3.5 1.3 4 3.2l1.1 5.2c.5 2.2-1.9 3.8-3.7 2.5l-2.4-1.7H8.2l-2.4 1.7c-1.8 1.3-4.2-.3-3.7-2.5l1.1-5.2C3.7 7.3 5.2 6 7.2 6ZM7 9v2H5v2h2v2h2v-2h2v-2H9V9H7Zm8.8 1.1a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Zm2.8 2.8a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Z"/></svg>';
-   streamsServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(); setDesktopServer('streams'); });
-   gamesServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(); setDesktopServer('games'); });
+   streamsServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(); hideMediaHoverPreview(); setDesktopServer('streams'); });
+   gamesServerButton.addEventListener('click', event => { event.stopPropagation(); hideButtonPreview(); hideMediaHoverPreview(); setDesktopServer('games'); });
    serverRail.append(streamsServerButton, gamesServerButton);
    box.appendChild(serverRail);
    setDesktopServer('streams');
@@ -702,33 +696,46 @@ javascript:(async function(){
  activeBtn = btn;
  };
 
- let channelJoinAudioContext = null;
- const playChannelJoinSound = (channel = '') => {
- dbg('audio:channel-join', { channel });
+ let interfaceButtonAudioContext = null;
+ const interfaceButtonName = button => {
+ const raw = button?.dataset?.mediaChannel === '1' ? 'MAIN 2'
+ : button?.dataset?.streamName || button?.getAttribute?.('aria-label') || button?.title || button?.textContent || 'Button';
+ return String(raw).replace(/\s+/g, ' ').trim().slice(0, 80) || 'Button';
+ };
+ const isBajsasInterfaceButton = button => {
+ if (!button) return false;
+ if (STANDALONE || wrapper.contains(button) || button.matches?.('.bajsas-watch-badge')) return true;
+ return Boolean(button.closest('.bajsas-game-modal,.bajsas-pixel,.bajsas-snake,.bajsas-media-queue-list'));
+ };
+ const playInterfaceButtonSound = button => {
+ const name = interfaceButtonName(button);
+ dbg('audio:button-click', { button: name });
  try {
  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
  if (!AudioContextClass) return;
- channelJoinAudioContext ||= new AudioContextClass();
+ interfaceButtonAudioContext ||= new AudioContextClass();
  const play = () => {
- const now = channelJoinAudioContext.currentTime + .006;
- const notes = [[392, 0, .09, .038], [587.33, .052, .13, .032]];
- for (const [frequency, delay, duration, volume] of notes) {
- const oscillator = channelJoinAudioContext.createOscillator();
- const gain = channelJoinAudioContext.createGain();
- oscillator.type = 'sine';
- oscillator.frequency.setValueAtTime(frequency, now + delay);
- oscillator.frequency.exponentialRampToValueAtTime(frequency * 1.045, now + delay + duration);
- gain.gain.setValueAtTime(.0001, now + delay);
- gain.gain.exponentialRampToValueAtTime(volume, now + delay + .012);
- gain.gain.exponentialRampToValueAtTime(.0001, now + delay + duration);
- oscillator.connect(gain).connect(channelJoinAudioContext.destination);
- oscillator.start(now + delay);
- oscillator.stop(now + delay + duration + .012);
- }
+ const now = interfaceButtonAudioContext.currentTime;
+ const oscillator = interfaceButtonAudioContext.createOscillator();
+ const gain = interfaceButtonAudioContext.createGain();
+ oscillator.type = 'triangle';
+ oscillator.frequency.setValueAtTime(560, now);
+ oscillator.frequency.exponentialRampToValueAtTime(760, now + .045);
+ gain.gain.setValueAtTime(.0001, now);
+ gain.gain.exponentialRampToValueAtTime(.026, now + .006);
+ gain.gain.exponentialRampToValueAtTime(.0001, now + .055);
+ oscillator.connect(gain).connect(interfaceButtonAudioContext.destination);
+ oscillator.start(now);
+ oscillator.stop(now + .06);
  };
- if (channelJoinAudioContext.state === 'suspended') channelJoinAudioContext.resume().then(play).catch(()=>{}); else play();
+ if (interfaceButtonAudioContext.state === 'suspended') interfaceButtonAudioContext.resume().then(play).catch(()=>{}); else play();
  } catch {}
  };
+ document.addEventListener('click', event => {
+ const button = event.target?.closest?.('button,[role="button"]');
+ if (!event.isTrusted || !button || button.disabled || button.getAttribute?.('aria-disabled') === 'true' || !isBajsasInterfaceButton(button)) return;
+ playInterfaceButtonSound(button);
+ }, true);
 
  const formatUrl = (url) => {
  if (isYouTubeUrl(url)) {
@@ -752,6 +759,14 @@ javascript:(async function(){
  };
 
  let buttonPreviewCard = null;
+ let mediaHoverCard = null;
+ let mediaHoverToken = 0;
+ const hideMediaHoverPreview = () => {
+   const token = ++mediaHoverToken;
+   if (!mediaHoverCard) return;
+   mediaHoverCard.classList.remove('show');
+   setTimeout(() => { if (token === mediaHoverToken && mediaHoverCard) mediaHoverCard.style.display = 'none'; }, 190);
+ };
  let buttonPreviewTimer = null;
  let buttonPreviewToken = 0;
  let buttonPreviewVisibleUrl = '';
@@ -997,7 +1012,6 @@ javascript:(async function(){
  btn.append(nameEl, popularityUpvote);
 
      btn.onclick = (event) => {
-         const joiningNewChannel = activeBtn !== btn;
          if (isNative) {
              dbg('player:native-selected', { source: event?.isTrusted ? 'user' : 'script' });
  v.muted = false;
@@ -1023,7 +1037,6 @@ javascript:(async function(){
 
      
      setActive(btn);
-     if (joiningNewChannel && event?.isTrusted) playChannelJoinSound(text);
  };
 
  if (!isNative && src) {
@@ -1378,7 +1391,7 @@ javascript:(async function(){
  btnRow.addEventListener('bajsas:live-status',renderPresence);
  const mediaPanel=document.createElement('div');mediaPanel.className='bajsas-media';mediaPanel.innerHTML='<iframe allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe><div class="bajsas-media-loader" data-media-loader aria-hidden="true"><img src="https://cdn.7tv.app/emote/01GQ117GK8000F8SBVNAFDHMR9/4x.avif" alt="" loading="eager" decoding="async" fetchpriority="high"></div><div class="bajsas-media-lock" data-media-sync-status>Sync waiting…</div><div class="bajsas-media-confirm" data-media-confirm><div class="bajsas-media-confirm-title">🔔 Confirmation Open!</div><div class="bajsas-media-confirm-sub" data-media-confirm-text>Final 3 minutes - confirm your next request</div><div class="bajsas-media-confirm-actions" data-media-confirm-actions></div><div class="bajsas-media-confirm-progress" data-media-confirm-progress style="display:none"><i data-media-confirm-bar></i></div><button type="button" class="custom-stream-btn" style="position:absolute;right:8px;top:8px;padding:2px 6px;font-size:11px" data-media-confirm-close>✕</button></div><div class="bajsas-media-fetch-warning" data-media-fetch-warning><button type="button" data-media-warning-close aria-label="Close">✕</button>Player is taking too long to load. Close DevTools/Console, then close and reopen MAIN 2.</div><div class="bajsas-media-bar"><input placeholder="IMDb link/ID, TMDB ID, TV ID season episode, or YouTube link"><button class="custom-stream-btn" data-media-add>Request</button><button class="custom-stream-btn" data-media-vote>Vote Skip</button><span class="bajsas-media-queue" data-media-status>No media</span><div class="bajsas-media-provider-wrap"><button type="button" class="custom-stream-btn bajsas-media-provider-toggle" data-media-provider-toggle disabled>Switch Provider ▾</button><div class="bajsas-media-provider-menu" data-media-provider-menu role="menu" aria-label="Local provider selection"><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="vixsrc">VixSrc</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="vixsrc" title="Prioritize VixSrc locally" aria-label="Prioritize VixSrc locally">☆</button></div><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="cinesrc">CineSrc</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="cinesrc" title="Prioritize CineSrc locally" aria-label="Prioritize CineSrc locally">☆</button></div><div class="bajsas-media-provider-row"><button type="button" class="bajsas-media-provider-choice" data-media-provider-choice="vidfast">VidFast</button><button type="button" class="bajsas-media-provider-star" data-media-provider-star="vidfast" title="Prioritize VidFast locally" aria-label="Prioritize VidFast locally">☆</button></div></div></div><button class="custom-stream-btn" data-media-close>✕</button></div>';wrapper.appendChild(mediaPanel);
  const mediaButton=document.createElement('button');mediaButton.className='custom-stream-btn is-live';const mediaChannelIcon=document.createElement('span');mediaChannelIcon.className='bajsas-channel-icon';mediaChannelIcon.textContent='#';mediaChannelIcon.setAttribute('aria-hidden','true');const mediaLiveDot=document.createElement('span');mediaLiveDot.className='live-dot';const mediaButtonName=document.createElement('span');mediaButtonName.className='btn-name';mediaButtonName.textContent='MAIN 2';const mediaPopularityUpvote=document.createElement('span');mediaPopularityUpvote.className='bajsas-popularity-upvote';mediaPopularityUpvote.dataset.popularityMarker='1';mediaPopularityUpvote.title='Most popular channel right now';mediaPopularityUpvote.setAttribute('aria-label','Most popular channel right now');mediaPopularityUpvote.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3.5 12h5v9h7v-9h5L12 3z"/></svg>';mediaButton.append(mediaChannelIcon,mediaLiveDot,mediaButtonName,mediaPopularityUpvote);mediaButton.title='Media Share watch party — LIVE';mediaButton.dataset.mediaChannel='1';mediaButton.dataset.bajsasServer='streams';mediaButton.dataset.liveState='live';const mainButton=[...btnRow.querySelectorAll('.custom-stream-btn[data-stream-selector="1"]')].find(button=>(button.dataset.streamName||'').toLowerCase()==='main');const mainOrder=Number(mainButton?.dataset.streamOrder);mediaButton.dataset.streamOrder=String(Number.isFinite(mainOrder)?mainOrder+.5:streamButtonOrder++);if(mainButton)mainButton.insertAdjacentElement('afterend',mediaButton);else btnRow.appendChild(mediaButton);sortStreamChannelsByLive();
- let mediaFrame=mediaPanel.querySelector('iframe');const mediaInput=mediaPanel.querySelector('input'),mediaStatus=mediaPanel.querySelector('[data-media-status]'),mediaFetchWarning=mediaPanel.querySelector('[data-media-fetch-warning]'),mediaSyncStatus=mediaPanel.querySelector('[data-media-sync-status]'),mediaProviderToggle=mediaPanel.querySelector('[data-media-provider-toggle]'),mediaProviderMenu=mediaPanel.querySelector('[data-media-provider-menu]'),mediaLoader=mediaPanel.querySelector('[data-media-loader]');let mediaFetchTimer=null,mediaFallbackTimer=null;const createMediaFrame=()=>{const frame=document.createElement('iframe');frame.allow='autoplay; fullscreen; encrypted-media; picture-in-picture';frame.setAttribute('allowfullscreen','');mediaPanel.prepend(frame);return frame};const mediaQueueList=document.createElement('div');mediaQueueList.className='bajsas-media-queue-list';document.body.appendChild(mediaQueueList);let mediaCurrentId='',mediaCurrentServer='',mediaCurrentProvider='',mediaAttemptId='',mediaAttemptStartedAt=0,mediaReadyKey='',mediaRevision=0,mediaSuppressUntil=0,mediaClockOffset=0,mediaLastState=null,mediaHoverCard=null,mediaLastObservedTime=-1,mediaLastAdvancedAt=Date.now(),mediaBufferReportedKey='',mediaLastSyncCorrection=0,mediaSyncIgnoreUntil=0,mediaSeekAttemptKey='',mediaWarningDismissed=false,mediaLocalSource='vixsrc';
+ let mediaFrame=mediaPanel.querySelector('iframe');const mediaInput=mediaPanel.querySelector('input'),mediaStatus=mediaPanel.querySelector('[data-media-status]'),mediaFetchWarning=mediaPanel.querySelector('[data-media-fetch-warning]'),mediaSyncStatus=mediaPanel.querySelector('[data-media-sync-status]'),mediaProviderToggle=mediaPanel.querySelector('[data-media-provider-toggle]'),mediaProviderMenu=mediaPanel.querySelector('[data-media-provider-menu]'),mediaLoader=mediaPanel.querySelector('[data-media-loader]');let mediaFetchTimer=null,mediaFallbackTimer=null;const createMediaFrame=()=>{const frame=document.createElement('iframe');frame.allow='autoplay; fullscreen; encrypted-media; picture-in-picture';frame.setAttribute('allowfullscreen','');mediaPanel.prepend(frame);return frame};const mediaQueueList=document.createElement('div');mediaQueueList.className='bajsas-media-queue-list';document.body.appendChild(mediaQueueList);let mediaCurrentId='',mediaCurrentServer='',mediaCurrentProvider='',mediaAttemptId='',mediaAttemptStartedAt=0,mediaReadyKey='',mediaRevision=0,mediaSuppressUntil=0,mediaClockOffset=0,mediaLastState=null,mediaLastObservedTime=-1,mediaLastAdvancedAt=Date.now(),mediaBufferReportedKey='',mediaLastSyncCorrection=0,mediaSyncIgnoreUntil=0,mediaSeekAttemptKey='',mediaWarningDismissed=false,mediaLocalSource='vixsrc';
  const mediaSetLoading=show=>mediaLoader.classList.toggle('show',Boolean(show));let mediaDirectPlaybackEvidence={playbackSamples:new Map(),expectPlaying:true};
  const MEDIA_PROVIDER_LOCAL_PRIORITY_KEY='bajsas_main2_local_provider_priority',mediaProviderSources=['vixsrc','cinesrc','vidfast'];
  const mediaProviderDisplayName=source=>source==='vixsrc'?'VixSrc':source==='cinesrc'?'CineSrc':source==='vidfast'?'VidFast':source==='youtube'?'YouTube':'Provider';
@@ -1386,7 +1399,7 @@ javascript:(async function(){
  const mediaLocalProviderOrder=()=>{const order=[];for(const source of mediaProviderOrder){if(mediaProviderSources.includes(source)&&!order.includes(source))order.push(source)}if(!order.length)order.push(...mediaProviderSources);const vixIndex=order.indexOf('vixsrc');if(vixIndex>0){order.splice(vixIndex,1);order.unshift('vixsrc')}if(mediaPreferredProvider&&order.includes(mediaPreferredProvider)){order.splice(order.indexOf(mediaPreferredProvider),1);order.unshift(mediaPreferredProvider)}return order};
  const mediaRefreshProviderMenu=()=>{const cur=mediaLastState?.current,available=Boolean(cur&&cur.type!=='youtube'&&mediaPanel.classList.contains('show')),configured=available?new Set(mediaLocalProviderOrder()):new Set(),racing=Boolean(mediaProviderRace);mediaProviderToggle.disabled=!available;mediaProviderToggle.textContent=racing?`${mediaPreferredProvider?'★ '+mediaProviderDisplayName(mediaPreferredProvider)+' • ':''}Switch Provider ▾`:`${mediaPreferredProvider&&mediaPreferredProvider===mediaLocalSource?'★ ':''}Switch: ${available?mediaProviderDisplayName(mediaLocalSource):'Provider'} ▾`;mediaProviderToggle.title=mediaPreferredProvider?`Local priority: ${mediaProviderDisplayName(mediaPreferredProvider)}`:'Choose or locally prioritize a provider';if(!available)mediaProviderMenu.classList.remove('show');for(const choice of mediaProviderMenu.querySelectorAll('[data-media-provider-choice]')){const source=choice.dataset.mediaProviderChoice,active=available&&!racing&&source===mediaLocalSource;choice.classList.toggle('is-active',active);choice.disabled=!available||!configured.has(source);choice.setAttribute('aria-pressed',String(active))}for(const star of mediaProviderMenu.querySelectorAll('[data-media-provider-star]')){const source=star.dataset.mediaProviderStar,selected=source===mediaPreferredProvider;star.textContent=selected?'★':'☆';star.classList.toggle('is-starred',selected);star.disabled=!available||!configured.has(source);star.setAttribute('aria-pressed',String(selected))}};
  const mediaSetPreferredProvider=source=>{mediaPreferredProvider=mediaProviderSources.includes(source)?source:'';try{localStorage.setItem(MEDIA_PROVIDER_LOCAL_PRIORITY_KEY,mediaPreferredProvider||'none')}catch{}mediaRefreshProviderMenu();dbg('media:local-provider-priority',{source:mediaPreferredProvider||'none'})};
- const renderMediaQueue=state=>{mediaQueueList.replaceChildren();const queue=state?.queue||[],ownNextId=queue.find(item=>item.requestedBy===bGetUser())?.id||'';if(queue.length&&!state?.confirmationOpen){const note=document.createElement('div');note.className='bajsas-media-queue-meta';note.style.padding='7px';note.textContent='Confirmation opens during the final 3 minutes of the current movie.';mediaQueueList.appendChild(note)}if(!queue.length){const empty=document.createElement('div');empty.className='bajsas-presence-empty';empty.textContent='Queue is empty';mediaQueueList.appendChild(empty);return}queue.forEach((item,index)=>{const row=document.createElement('div');row.className='bajsas-media-queue-item';const number=document.createElement('span');number.className='bajsas-media-queue-index';number.textContent=String(index+1);const info=document.createElement('div');info.className='bajsas-media-queue-info';const title=document.createElement('div');title.className='bajsas-media-queue-title';const fullTitle=(String(item.title||'Untitled')+(item.year?' ('+item.year+')':'')).replace(/\s+/g,' ').trim();title.textContent=fullTitle.length>68?fullTitle.slice(0,64).trimEnd()+'....':fullTitle;title.title=fullTitle;title.setAttribute('aria-label',fullTitle);const meta=document.createElement('div');meta.className='bajsas-media-queue-meta';const wait=Math.max(0,Number(item.estimatedWaitSec)-(Number.isFinite(Number(state?.serverNow))?Math.max(0,(mediaNow()-Number(state.serverNow))/1000):0)),eta=item.estimatedWaitSec==null?'Waiting time unavailable':wait<90?'Expected next':wait<3600?'Expected in about '+Math.max(1,Math.round(wait/60))+' minutes':'Expected in about '+Math.floor(wait/3600)+' hour'+(Math.floor(wait/3600)===1?'':'s')+(Math.round((wait%3600)/60)?' '+Math.round((wait%3600)/60)+' minutes':'');meta.textContent='Requested by '+item.requestedBy+' • '+(item.confirmedBy?.length||0)+' confirmed • '+eta;info.append(title,meta);const action=document.createElement('span');if(state?.confirmationOpen&&item.requestedBy===bGetUser()&&item.id===ownNextId){const confirm=document.createElement('button');confirm.className='custom-stream-btn';confirm.textContent=item.confirmedBy?.includes(bGetUser())?'✓':'Confirm';confirm.disabled=item.confirmedBy?.includes(bGetUser());confirm.onclick=event=>{event.stopPropagation();sendMedia({type:'media_confirm',itemId:item.id})};action.appendChild(confirm)}else{action.className='bajsas-media-queue-meta';action.textContent=item.confirmedBy?.length?'✓':''}row.append(number,info,action);mediaQueueList.appendChild(row)})};
+ const renderMediaQueue=state=>{mediaQueueList.replaceChildren();const queue=state?.queue||[],globalNext=queue[0]||null,ownNextId=globalNext?.requestedBy===bGetUser()?globalNext.id:'';if(queue.length&&!state?.confirmationOpen){const note=document.createElement('div');note.className='bajsas-media-queue-meta';note.style.padding='7px';note.textContent='Confirmation opens during the final 3 minutes of the current movie.';mediaQueueList.appendChild(note)}if(!queue.length){const empty=document.createElement('div');empty.className='bajsas-presence-empty';empty.textContent='Queue is empty';mediaQueueList.appendChild(empty);return}queue.forEach((item,index)=>{const row=document.createElement('div');row.className='bajsas-media-queue-item';const number=document.createElement('span');number.className='bajsas-media-queue-index';number.textContent=String(index+1);const info=document.createElement('div');info.className='bajsas-media-queue-info';const title=document.createElement('div');title.className='bajsas-media-queue-title';const fullTitle=(String(item.title||'Untitled')+(item.year?' ('+item.year+')':'')).replace(/\s+/g,' ').trim();title.textContent=fullTitle.length>68?fullTitle.slice(0,64).trimEnd()+'....':fullTitle;title.title=fullTitle;title.setAttribute('aria-label',fullTitle);const meta=document.createElement('div');meta.className='bajsas-media-queue-meta';const wait=Math.max(0,Number(item.estimatedWaitSec)-(Number.isFinite(Number(state?.serverNow))?Math.max(0,(mediaNow()-Number(state.serverNow))/1000):0)),eta=item.estimatedWaitSec==null?'Waiting time unavailable':wait<90?'Expected next':wait<3600?'Expected in about '+Math.max(1,Math.round(wait/60))+' minutes':'Expected in about '+Math.floor(wait/3600)+' hour'+(Math.floor(wait/3600)===1?'':'s')+(Math.round((wait%3600)/60)?' '+Math.round((wait%3600)/60)+' minutes':'');meta.textContent='Requested by '+item.requestedBy+' • '+(item.confirmedBy?.length||0)+' confirmed • '+eta;info.append(title,meta);const action=document.createElement('span');if(state?.confirmationOpen&&item.requestedBy===bGetUser()&&item.id===ownNextId){const confirm=document.createElement('button');confirm.className='custom-stream-btn';confirm.textContent=item.confirmedBy?.includes(bGetUser())?'✓':'Confirm';confirm.disabled=item.confirmedBy?.includes(bGetUser());confirm.onclick=event=>{event.stopPropagation();sendMedia({type:'media_confirm',itemId:item.id})};action.appendChild(confirm)}else{action.className='bajsas-media-queue-meta';action.textContent=item.confirmedBy?.length?'✓':''}row.append(number,info,action);mediaQueueList.appendChild(row)})};
  mediaStatus.addEventListener('mouseenter',()=>{renderMediaQueue(mediaLastState);mediaQueueList.classList.add('show');const r=mediaStatus.getBoundingClientRect();requestAnimationFrame(()=>{const width=mediaQueueList.offsetWidth,height=mediaQueueList.offsetHeight;mediaQueueList.style.left=Math.max(8,Math.min(innerWidth-width-8,r.right-width))+'px';mediaQueueList.style.top=Math.max(8,r.top-height-8)+'px'})});mediaStatus.addEventListener('mouseleave',()=>setTimeout(()=>{if(!mediaQueueList.matches(':hover'))mediaQueueList.classList.remove('show')},100));mediaQueueList.addEventListener('mouseleave',()=>mediaQueueList.classList.remove('show'));
  const mediaNow=()=>Date.now()+mediaClockOffset;
  const mediaExpectedTime=cur=>{const pb=cur?.playback;if(!pb)return 0;return Math.max(0,Number(pb.position||0)+(pb.playing?(mediaNow()-Number(pb.updatedAt||mediaNow()))/1000:0))};
@@ -1646,8 +1659,8 @@ mediaSyncStatus.textContent=`${source==='cinesrc'?'CineSrc':source==='vixsrc'?'V
     if(confirmEl){
       const prevOpen=confirmEl.dataset.open==='1';
       const nowOpen=!!state?.confirmationOpen;
-      const ownQueue=(state?.queue||[]).filter(x=>x.requestedBy===bGetUser());
-      const ownNext=ownQueue[0];
+      const globalNext=(state?.queue||[])[0]||null;
+      const ownNext=globalNext?.requestedBy===bGetUser()?globalNext:null;
       const alreadyConfirmed=ownNext && (ownNext.confirmedBy||[]).includes(bGetUser());
       const shouldShow = nowOpen && ownNext && !alreadyConfirmed;
       
@@ -1721,8 +1734,8 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
  document.addEventListener('pointerdown',event=>{if(mediaProviderMenu.classList.contains('show')&&!mediaProviderWrap.contains(event.target))mediaProviderMenu.classList.remove('show')},true);
  document.addEventListener('keydown',event=>{if(event.key==='Escape')mediaProviderMenu.classList.remove('show')});
 
- mediaButton.onclick=(event)=>{const joiningNewChannel=activeBtn!==mediaButton;pixelClose();snakeExit();destroyMediaPlayer();box.classList.add('bajsas-main2-selector');restoreMain2SelectorY();bGameUiEnabled=false;bGameModal.classList.remove('show');v.muted=true;i.src='';i.style.display='none';bActiveStream='MAIN 2';bLastProcessedCh='MAIN 2';bPing('watch:MAIN 2');bRefreshChatUser(bGetUser());mediaPanel.classList.add('show');mediaSetLoading(true);syncMediaClock();sendMedia({type:'media_get'});setActive(mediaButton);if(joiningNewChannel&&event?.isTrusted)playChannelJoinSound('MAIN 2')};mediaPanel.querySelector('[data-media-close]').onclick=()=>nativeBtn.click();mediaPanel.querySelector('[data-media-add]').onclick=()=>{if(mediaInput.value.trim()){sendMedia({type:'media_request',query:mediaInput.value.trim()});mediaInput.value=''}};mediaPanel.querySelector('[data-media-vote]').onclick=()=>sendMedia({type:'media_vote_skip'});
- mediaButton.addEventListener('mouseenter',()=>{const cur=mediaLastState?.current;if(!cur)return;if(!mediaHoverCard){mediaHoverCard=document.createElement('div');mediaHoverCard.className='bajsas-stream-preview';document.body.appendChild(mediaHoverCard)}mediaHoverCard.replaceChildren();if(cur.poster){const img=document.createElement('img');img.src=cur.poster;img.alt='';mediaHoverCard.appendChild(img)}const title=document.createElement('div');title.className='bajsas-stream-preview-title';title.textContent=cur.title+(cur.year?' ('+cur.year+')':'');const meta=document.createElement('div');meta.className='bajsas-stream-preview-meta';meta.textContent='Now playing • requested by '+cur.requestedBy;mediaHoverCard.append(title,meta);const r=mediaButton.getBoundingClientRect();mediaHoverCard.style.display='block';mediaHoverCard.style.left=Math.max(8,Math.min(innerWidth-300,r.left))+'px';mediaHoverCard.style.top=(r.bottom+8)+'px';requestAnimationFrame(()=>mediaHoverCard.classList.add('show'))});mediaButton.addEventListener('mouseleave',()=>{mediaHoverCard?.classList.remove('show');setTimeout(()=>{if(mediaHoverCard&&!mediaHoverCard.classList.contains('show'))mediaHoverCard.style.display='none'},180)});
+ mediaButton.onclick=()=>{hideMediaHoverPreview();pixelClose();snakeExit();destroyMediaPlayer();box.classList.add('bajsas-main2-selector');restoreMain2SelectorY();bGameUiEnabled=false;bGameModal.classList.remove('show');v.muted=true;i.src='';i.style.display='none';bActiveStream='MAIN 2';bLastProcessedCh='MAIN 2';bPing('watch:MAIN 2');bRefreshChatUser(bGetUser());mediaPanel.classList.add('show');mediaSetLoading(true);syncMediaClock();sendMedia({type:'media_get'});setActive(mediaButton)};mediaPanel.querySelector('[data-media-close]').onclick=()=>nativeBtn.click();mediaPanel.querySelector('[data-media-add]').onclick=()=>{if(mediaInput.value.trim()){sendMedia({type:'media_request',query:mediaInput.value.trim()});mediaInput.value=''}};mediaPanel.querySelector('[data-media-vote]').onclick=()=>sendMedia({type:'media_vote_skip'});
+ mediaButton.addEventListener('mouseenter',()=>{const cur=mediaLastState?.current;if(!cur)return;hideButtonPreview();const token=++mediaHoverToken;if(!mediaHoverCard){mediaHoverCard=document.createElement('div');mediaHoverCard.className='bajsas-stream-preview';mediaHoverCard.dataset.main2Preview='1';document.body.appendChild(mediaHoverCard)}mediaHoverCard.replaceChildren();if(cur.poster){const img=document.createElement('img');img.src=cur.poster;img.alt='';mediaHoverCard.appendChild(img)}const title=document.createElement('div');title.className='bajsas-stream-preview-title';title.textContent=cur.title+(cur.year?' ('+cur.year+')':'');const meta=document.createElement('div');meta.className='bajsas-stream-preview-meta';meta.textContent='Now playing • requested by '+cur.requestedBy;mediaHoverCard.append(title,meta);const r=mediaButton.getBoundingClientRect();mediaHoverCard.style.display='block';const panelRect=mediaButton.closest('#custom-stream-ui')?.getBoundingClientRect()||r;const cardRect=mediaHoverCard.getBoundingClientRect(),previewGap=10,maxPreviewLeft=Math.max(8,innerWidth-cardRect.width-8);let previewLeft=panelRect.right+previewGap;if(previewLeft+cardRect.width>innerWidth-8)previewLeft=panelRect.left-cardRect.width-previewGap;mediaHoverCard.style.left=Math.max(8,Math.min(maxPreviewLeft,previewLeft))+'px';mediaHoverCard.style.top=Math.max(8,Math.min(innerHeight-cardRect.height-8,r.top))+'px';requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===mediaHoverToken)mediaHoverCard.classList.add('show')}))});mediaButton.addEventListener('mouseleave',hideMediaHoverPreview);
  let bws = null, bwsTimer = null;
  let bid = '';
  let bSelfUser = ''; 
@@ -2038,7 +2051,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
      function bRenderGame(){bGameBoard.innerHTML='';const me=bGetUser(),mySide=me===bGame.red?'red':me===bGame.black?'black':'spectator',legal=mySide!=='spectator'&&bGame.turn===mySide?bClientLegalMoves(bGame.board,mySide,bGame.forcedFrom):[],selectable=new Set(legal.map(m=>m.from)),destinations=new Set(legal.filter(m=>m.from===bGame.selected).map(m=>m.to)),captureRequired=legal.some(m=>m.capture!=null);bGameModal.querySelector('[data-game-side]').textContent=mySide==='spectator'?'Spectating':'You are '+mySide.toUpperCase();bGameModal.querySelector('[data-room-close]').classList.toggle('bajsas-hidden',mySide!=='red');bGameModal.querySelector('[data-game-resign]').classList.toggle('bajsas-hidden',mySide==='spectator');bGameModal.querySelector('[data-game-draw]').classList.toggle('bajsas-hidden',mySide==='spectator');for(let visual=0;visual<64;visual++){const n=mySide==='black'?63-visual:visual;const c=document.createElement('button');c.className='bajsas-game-cell '+((((n>>3)+(n&7))%2)?'dark':'light')+(bGame.selected===n?' selected':'')+(selectable.has(n)?' selectable':'')+(destinations.has(n)?' legal':'')+(bGame.lastMove&&(bGame.lastMove.from===n||bGame.lastMove.to===n)?' last-move':'');const p=bGame.board[n];if(p){const q=document.createElement('span');q.className='bajsas-piece '+p.side+(p.king?' king':'');c.appendChild(q)}c.onclick=()=>{if(!bGame.id||bGame.status!=='playing'||mySide==='spectator'||bGame.turn!==mySide)return;if(bGame.selected<0){if(selectable.has(n))bGame.selected=n}else if(selectable.has(n)){bGame.selected=n}else if(destinations.has(n)){bGameSend({type:'checkers_move',gameId:bGame.id,from:bGame.selected,to:n});bGame.selected=-1}else bGame.selected=-1;bRenderGame()};bGameBoard.appendChild(c)}const elapsed=bGame.status==='playing'?Date.now()-(bGame.turnStartedAt||Date.now()):0;const redMs=bGame.redMs-(bGame.turn==='red'?elapsed:0),blackMs=bGame.blackMs-(bGame.turn==='black'?elapsed:0);const redName=bGameModal.querySelector('[data-red-name]'),blackName=bGameModal.querySelector('[data-black-name]');redName.textContent=bGame.red||'Red';blackName.textContent=bGame.black||'Black';redName.parentElement.classList.toggle('active',bGame.status==='playing'&&bGame.turn==='red');blackName.parentElement.classList.toggle('active',bGame.status==='playing'&&bGame.turn==='black');redName.parentElement.classList.toggle('me',mySide==='red');blackName.parentElement.classList.toggle('me',mySide==='black');bGameModal.querySelector('[data-red-clock]').textContent=bFmtClock(redMs);bGameModal.querySelector('[data-black-clock]').textContent=bFmtClock(blackMs);bGameModal.querySelector('[data-red-count]').textContent=bGame.board.filter(x=>x?.side==='red').length+' pieces';bGameModal.querySelector('[data-black-count]').textContent=bGame.board.filter(x=>x?.side==='black').length+' pieces';const reconnecting=(bGame.reconnecting||[]).length?' • Reconnecting: '+bGame.reconnecting.join(', '):'';bGameStatus.textContent=bGame.status==='playing'?'Turn: '+bGame.turn+(captureRequired?' • Capture required':'')+reconnecting:bGame.status+(bGame.winner?' • Winner: '+bGame.winner:'')+(bGame.winReason?' • '+String(bGame.winReason).replaceAll('_',' '):'');}
      setInterval(()=>{if(bGameModal.classList.contains('show')&&bGame.status==='playing')bRenderGame()},1000);
      function bHandleCheckers(m){dbg('game:event',m);if(m.type==='checkers_error'){bGameStatus.textContent='Error: '+String(m.error||'unknown').replaceAll('_',' ');dbg('game:error',m);}else if(m.type==='checkers_lobby'){bLobbyRooms=m.rooms||[];bRenderLobby();}else if(m.type==='checkers_room_closed'){bGame={...bGame,id:'',status:'room closed'};bRenderGame();}else if(m.type==='checkers_invite'){bGameTone('invite');if(confirm(`${m.from} invited you to checkers. Accept?`)){bGameUiEnabled=true;bGame.id=m.gameId;bGameSend({type:'checkers_accept',gameId:m.gameId});bGameModal.classList.add('show')}else bGameSend({type:'checkers_decline',gameId:m.gameId})}else if(m.type==='checkers_state'){if(!Array.isArray(m.board)||m.board.length!==64){bGameStatus.textContent='Invalid board state';dbg('game:invalid-state',m);return;}const previous=bGame,oldPieces=(previous.board||[]).filter(Boolean).length,newPieces=m.board.filter(Boolean).length;bGame={...bGame,...m,id:m.gameId,selected:m.forcedFrom??-1};if(previous.status!=='playing'&&m.status==='playing')bGameTone('start');else if(m.status==='finished'&&previous.status!=='finished')bGameTone('end');else if(newPieces<oldPieces)bGameTone('capture');else if(previous.turn&&previous.turn!==m.turn)bGameTone('move');if(bGameUiEnabled){bGameModal.classList.add('show');if(m.status==='open')bShowLobby();else bShowBoard()}}else if(m.type==='checkers_draw_offer'){if(confirm(`${m.from} offers a draw. Accept?`))bGameSend({type:'checkers_draw_accept',gameId:m.gameId});else bGameSend({type:'checkers_draw_decline',gameId:m.gameId})}else if(m.type==='checkers_declined'){bGameStatus.textContent='Invitation declined'}else if(m.type==='checkers_draw_declined'){bGameStatus.textContent='Draw declined'}}
-     bGameModal.addEventListener('click',e=>{if(e.target.closest('button,select,input'))bGameTone('ui')},true);bGameModal.querySelector('[data-game-close]').onclick=()=>{bGameUiEnabled=false;bLeaveGame();bGameModal.classList.remove('show')};bGameModal.querySelector('[data-game-audio]').onclick=e=>{bGameAudioEnabled=!bGameAudioEnabled;localStorage.setItem('bajsas_game_audio',bGameAudioEnabled?'1':'0');e.currentTarget.textContent=bGameAudioEnabled?'🔊':'🔇';if(bGameAudioEnabled)bGameTone('start')};bGameModal.querySelector('[data-game-audio]').textContent=bGameAudioEnabled?'🔊':'🔇';bGameModal.querySelector('[data-room-create]').onclick=()=>bGameSend({type:'checkers_create_room',roomName:bGameModal.querySelector('[data-room-name]').value||`${bGetUser()}'s room`,timeControlMin:Number(bGameModal.querySelector('[data-room-time]').value)});bRoomCancel.onclick=()=>{const gameId=bRoomCancel.dataset.gameId||bGame.id;if(gameId&&confirm('Cancel this open room?')){bGameSend({type:'checkers_close_room',gameId});bRoomCancel.classList.add('bajsas-hidden');bGame={...bGame,id:'',status:'idle'}}};bGameModal.querySelector('[data-room-refresh]').onclick=()=>bGameSend({type:'checkers_lobby_list'});bGameBack.onclick=()=>{bLeaveGame();bShowLobby()};bGameModal.querySelector('[data-game-resign]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_resign',gameId:bGame.id})};bGameModal.querySelector('[data-game-draw]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_draw',gameId:bGame.id})};bGameModal.querySelector('[data-room-close]').onclick=()=>{if(bGame.id&&confirm('Close this room?'))bGameSend({type:'checkers_close_room',gameId:bGame.id})};
+     bGameModal.querySelector('[data-game-close]').onclick=()=>{bGameUiEnabled=false;bLeaveGame();bGameModal.classList.remove('show')};bGameModal.querySelector('[data-game-audio]').onclick=e=>{bGameAudioEnabled=!bGameAudioEnabled;localStorage.setItem('bajsas_game_audio',bGameAudioEnabled?'1':'0');e.currentTarget.textContent=bGameAudioEnabled?'🔊':'🔇';if(bGameAudioEnabled)bGameTone('start')};bGameModal.querySelector('[data-game-audio]').textContent=bGameAudioEnabled?'🔊':'🔇';bGameModal.querySelector('[data-room-create]').onclick=()=>bGameSend({type:'checkers_create_room',roomName:bGameModal.querySelector('[data-room-name]').value||`${bGetUser()}'s room`,timeControlMin:Number(bGameModal.querySelector('[data-room-time]').value)});bRoomCancel.onclick=()=>{const gameId=bRoomCancel.dataset.gameId||bGame.id;if(gameId&&confirm('Cancel this open room?')){bGameSend({type:'checkers_close_room',gameId});bRoomCancel.classList.add('bajsas-hidden');bGame={...bGame,id:'',status:'idle'}}};bGameModal.querySelector('[data-room-refresh]').onclick=()=>bGameSend({type:'checkers_lobby_list'});bGameBack.onclick=()=>{bLeaveGame();bShowLobby()};bGameModal.querySelector('[data-game-resign]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_resign',gameId:bGame.id})};bGameModal.querySelector('[data-game-draw]').onclick=()=>{if(bGame.id)bGameSend({type:'checkers_draw',gameId:bGame.id})};bGameModal.querySelector('[data-room-close]').onclick=()=>{if(bGame.id&&confirm('Close this room?'))bGameSend({type:'checkers_close_room',gameId:bGame.id})};
      const gameBtn=document.createElement('button');gameBtn.className='custom-stream-btn bajsas-game-channel';gameBtn.dataset.bajsasServer='games';gameBtn.textContent='🎮 Checkers';gameBtn.title='Play multiplayer checkers';gameBtn.onclick=()=>{pixelClose();snakeExit();bOpenGame()};btnRow.appendChild(gameBtn);
      const pixelStyle=document.createElement('style');pixelStyle.textContent='.bajsas-pixel{display:none;position:absolute;inset:0;z-index:2147483645;background:#fff;color:#fff;pointer-events:auto;font:12px sans-serif;overflow:hidden;flex-direction:column}.bajsas-pixel.show{display:flex;flex-direction:column}.pixel-top{display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(24,24,27,.97);border-bottom:1px solid #444}.pixel-top b{flex:1}.pixel-view{flex:1;overflow:hidden;background:#fff;position:relative;cursor:grab;touch-action:none}.pixel-view.dragging{cursor:grabbing}.pixel-stage{position:absolute;left:50%;top:50%;image-rendering:pixelated;transform-origin:0 0;box-shadow:0 3px 18px rgba(0,0,0,.22)}.pixel-stage canvas{display:block;width:100%;height:100%;image-rendering:pixelated}.pixel-grid{display:none;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.pixel-stage.grid .pixel-grid{display:block}.pixel-selection{display:none;position:absolute;pointer-events:none;border:2px solid #fff;box-shadow:0 0 0 1px #000,0 0 8px #fff;box-sizing:border-box}.pixel-bottom{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:rgba(24,24,27,.98);border-top:1px solid #444}.pixel-palette{display:none;position:absolute;z-index:12;width:190px;gap:4px;flex-wrap:wrap;padding:8px;background:rgba(24,24,27,.97);border:1px solid #555;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.45)}.pixel-palette.show{display:flex}.pixel-color{width:25px;height:25px;border:2px solid transparent;padding:0;cursor:pointer}.pixel-color.active{border-color:#fff;box-shadow:0 0 0 2px #000;transform:translateY(-2px)}.pixel-status{color:#ddd;min-width:150px}.pixel-cooldown{font-weight:800;color:#ffd166}';document.head.appendChild(pixelStyle);
      const pixelModal=document.createElement('div');pixelModal.className='bajsas-pixel';pixelModal.innerHTML='<div class="pixel-view"><div class="pixel-stage"><canvas width="128" height="128"></canvas><canvas class="pixel-grid"></canvas><i class="pixel-selection"></i></div></div><div class="pixel-bottom"><div class="pixel-palette"></div><span data-pixel-rev>rev 0</span><span data-pixel-coord>—</span><span class="pixel-status">Select a color and pixel.</span><span class="pixel-cooldown"></span><button class="custom-stream-btn" data-pixel-out>−</button><button class="custom-stream-btn" data-pixel-in>+</button><button class="custom-stream-btn" data-pixel-reset>Fit</button><button class="custom-stream-btn" data-pixel-sound>🔊</button><button class="custom-stream-btn" data-pixel-close>✕</button></div>';targetContainer.appendChild(pixelModal);
