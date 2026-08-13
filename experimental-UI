@@ -11,7 +11,7 @@ javascript:(async function(){
  const STANDALONE = document.documentElement.dataset.bajsasStandalone === '1';
  const WORKER_BASE_URL = STANDALONE ? location.origin : 'https://bitter-meadow-24f3.jeffvanss1.workers.dev';
  const APP_VERSION = 'lite 7.0';
- const APP_BUILD = '2026-08-13-original-chat-badge-centered-main2-5';
+ const APP_BUILD = '2026-08-13-stable-avatars-join-sound-8';
  const DEBUG = true;
  const debugBuffer = [];
  const dbg = (event, details = {}) => {
@@ -39,9 +39,11 @@ javascript:(async function(){
  
  
  localStorage.removeItem(LS_STREAM);
- const savedStream = STANDALONE ? '' : 'Twitch';
+ localStorage.setItem(LS_HIDE, "0");
+ const savedStream = 'MAIN';
  const isTheaterSaved = localStorage.getItem(LS_THEATER) === "1";
- let hideUntilHover = localStorage.getItem(LS_HIDE) === "1";
+ let hideUntilHover = false;
+ const isInstalledDiscordDesktop = () => !STANDALONE && matchMedia('(min-width:901px) and (hover:hover) and (pointer:fine)').matches;
 
  const liveCache = new Map();
 
@@ -290,6 +292,18 @@ javascript:(async function(){
    color:#b5bac1!important;text-align:left;font-size:10px!important;font-weight:700!important;
  }
  html:not([data-bajsas-standalone="1"]) #custom-stream-ui .bajsas-sidebar-hide:hover {background:#1e1f22!important;color:#f2f3f5!important}
+ html:not([data-bajsas-standalone="1"]) #custom-stream-ui.bajsas-sidebar-collapsed {
+   width:52px!important;height:64px!important;min-height:64px!important;max-height:64px!important;padding:0!important;
+   overflow:hidden!important;border-radius:14px!important;opacity:.9!important;transform:translate3d(0,-50%,0)!important;
+ }
+ html:not([data-bajsas-standalone="1"]) #custom-stream-ui.bajsas-sidebar-collapsed .bajsas-channel-header,
+ html:not([data-bajsas-standalone="1"]) #custom-stream-ui.bajsas-sidebar-collapsed .bajsas-channel-list {display:none!important}
+ html:not([data-bajsas-standalone="1"]) #custom-stream-ui.bajsas-sidebar-collapsed .bajsas-sidebar-hide {
+   display:grid!important;place-items:center!important;left:0!important;right:0!important;bottom:0!important;width:52px!important;height:18px!important;
+   padding:0!important;border:0!important;background:transparent!important;color:#b5bac1!important;text-align:center!important;font-size:0!important;
+ }
+ html:not([data-bajsas-standalone="1"]) #custom-stream-ui.bajsas-sidebar-collapsed .bajsas-sidebar-hide::after {content:'›';font-size:17px;font-weight:800;line-height:16px}
+ html:not([data-bajsas-standalone="1"]) #custom-stream-ui.bajsas-sidebar-collapsed .bajsas-sidebar-hide:hover {background:#35373c!important;color:#fff!important}
  html:not([data-bajsas-standalone="1"]) .bajsas-presence-toggle,
  html:not([data-bajsas-standalone="1"]) .bajsas-presence-panel {display:none!important}
  html:not([data-bajsas-standalone="1"]) #custom-stream-ui .bajsas-channel-list>.custom-stream-btn.has-connected-viewers .bajsas-channel-icon {color:#23a559}
@@ -621,6 +635,34 @@ javascript:(async function(){
  activeBtn = btn;
  };
 
+ let channelJoinAudioContext = null;
+ const playChannelJoinSound = (channel = '') => {
+ dbg('audio:channel-join', { channel });
+ try {
+ const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+ if (!AudioContextClass) return;
+ channelJoinAudioContext ||= new AudioContextClass();
+ const play = () => {
+ const now = channelJoinAudioContext.currentTime + .006;
+ const notes = [[392, 0, .09, .038], [587.33, .052, .13, .032]];
+ for (const [frequency, delay, duration, volume] of notes) {
+ const oscillator = channelJoinAudioContext.createOscillator();
+ const gain = channelJoinAudioContext.createGain();
+ oscillator.type = 'sine';
+ oscillator.frequency.setValueAtTime(frequency, now + delay);
+ oscillator.frequency.exponentialRampToValueAtTime(frequency * 1.045, now + delay + duration);
+ gain.gain.setValueAtTime(.0001, now + delay);
+ gain.gain.exponentialRampToValueAtTime(volume, now + delay + .012);
+ gain.gain.exponentialRampToValueAtTime(.0001, now + delay + duration);
+ oscillator.connect(gain).connect(channelJoinAudioContext.destination);
+ oscillator.start(now + delay);
+ oscillator.stop(now + delay + duration + .012);
+ }
+ };
+ if (channelJoinAudioContext.state === 'suspended') channelJoinAudioContext.resume().then(play).catch(()=>{}); else play();
+ } catch {}
+ };
+
  const formatUrl = (url) => {
  if (isYouTubeUrl(url)) {
  const videoId = extractYouTubeVideoId(url);
@@ -897,6 +939,7 @@ javascript:(async function(){
  }
 
      btn.onclick = (event) => {
+         const joiningNewChannel = activeBtn !== btn;
          if (isNative) {
              dbg('player:native-selected', { source: event?.isTrusted ? 'user' : 'script' });
  v.muted = false;
@@ -922,6 +965,7 @@ javascript:(async function(){
 
      
      setActive(btn);
+     if (joiningNewChannel && event?.isTrusted) playChannelJoinSound(text);
  };
 
  if (!isNative && src) {
@@ -951,7 +995,7 @@ javascript:(async function(){
  btn.dataset.streamEmote = emote || '';
  btnRow.appendChild(btn);
 
- const isDefault = savedStream ? (savedStream === name) : (!isInitialized && index === 0);
+ const isDefault = savedStream ? (savedStream.toLowerCase() === String(name||'').trim().toLowerCase()) : (!isInitialized && index === 0);
  if (isDefault) {
  btn.onclick();
  isInitialized = true;
@@ -1037,18 +1081,31 @@ javascript:(async function(){
 
  btnRow.appendChild(refreshBtn);
 
- if (!hideUntilHover) {
+ if (isInstalledDiscordDesktop()) {
+ const collapseBtn = document.createElement('button');
+ collapseBtn.type = 'button';
+ collapseBtn.className = 'bajsas-sidebar-hide';
+ collapseBtn.style.cssText = 'cursor:pointer;padding:4px 8px;border:none;border-radius:4px;background:#c62828;color:#fff;font-size:11px;font-weight:bold;margin-top:4px;';
+ const applyDesktopSidebarCollapse = (collapsed, persist = true) => {
+ hideUntilHover = Boolean(collapsed);
+ box.classList.toggle('bajsas-sidebar-collapsed', hideUntilHover);
+ targetContainer.classList.remove('stream-hide-ui');
+ collapseBtn.innerText = hideUntilHover ? '▶  Expand panel' : '◀  Collapse panel';
+ collapseBtn.title = hideUntilHover ? 'Expand BajSAS channels' : 'Collapse BajSAS channels';
+ collapseBtn.setAttribute('aria-label', collapseBtn.title);
+ collapseBtn.setAttribute('aria-expanded', String(!hideUntilHover));
+ if (persist) localStorage.setItem(LS_HIDE, hideUntilHover ? '1' : '0');
+ dbg('sidebar:collapse', { collapsed: hideUntilHover });
+ };
+ collapseBtn.onclick = event => { event.preventDefault(); event.stopPropagation(); applyDesktopSidebarCollapse(!box.classList.contains('bajsas-sidebar-collapsed')); };
+ box.appendChild(collapseBtn);
+ applyDesktopSidebarCollapse(hideUntilHover, false);
+ } else if (!hideUntilHover) {
  const hideBtn = document.createElement('button');
  hideBtn.className = 'bajsas-sidebar-hide';
  hideBtn.innerText = '◀  Hide until hover';
  hideBtn.style.cssText = 'cursor:pointer;padding:4px 8px;border:none;border-radius:4px;background:#c62828;color:#fff;font-size:11px;font-weight:bold;margin-top:4px;';
-
- hideBtn.onclick = () => {
- localStorage.setItem(LS_HIDE, "1");
- targetContainer.classList.add('stream-hide-ui');
- hideBtn.remove();
- };
-
+ hideBtn.onclick = () => { hideUntilHover = true; localStorage.setItem(LS_HIDE, '1'); targetContainer.classList.add('stream-hide-ui'); hideBtn.remove(); };
  box.appendChild(hideBtn);
  } else {
  targetContainer.classList.add('stream-hide-ui');
@@ -1070,6 +1127,8 @@ javascript:(async function(){
 
  wrapper.appendChild(box);
  targetContainer.appendChild(wrapper);
+ setStreamUiActive();
+ dbg('player:launch-default',{panel:'expanded',stream:activeBtn?.dataset.streamName||'MAIN'});
 
  
  
@@ -1081,7 +1140,8 @@ javascript:(async function(){
  const previous = targetContainer;
  targetContainer = nextContainer;
  preparePlayerContainer(targetContainer);
- if (hideUntilHover) targetContainer.classList.add('stream-hide-ui');
+ if (hideUntilHover && !isInstalledDiscordDesktop()) targetContainer.classList.add('stream-hide-ui');
+ else targetContainer.classList.remove('stream-hide-ui');
  bindPlayerContainer(targetContainer);
  targetContainer.appendChild(wrapper);
  dbg('player:wrapper-reattached', { previousConnected: previous?.isConnected || false });
@@ -1108,6 +1168,7 @@ javascript:(async function(){
  const expandedPresenceGroups = new Set();
  const presenceAvatarCache = new Map();
  const presenceAvatarInflight = new Map();
+ const presenceRowCache = { sidebar:new Map(), panel:new Map() };
  const presencePanel = document.createElement('div'); presencePanel.className = 'bajsas-presence-panel'; presencePanel.setAttribute('aria-label','Connected viewers by voice channel');
  const presenceButton = document.createElement('button'); presenceButton.className = 'custom-stream-btn bajsas-presence-toggle'; presenceButton.textContent = 'Online 0'; presenceButton.title = 'Show connected BajSAS viewers';
  const presenceAvatarHue = username => [...String(username)].reduce((sum,char) => (sum * 31 + char.charCodeAt(0)) % 360, 235);
@@ -1136,12 +1197,15 @@ javascript:(async function(){
    return task;
  };
  const loadPresenceAvatar = (avatar,image,username) => {
+   if (image.dataset.avatarState === 'loading' || image.dataset.avatarState === 'loaded') return;
+   image.dataset.avatarState='loading';
    getPresenceAvatar(username).then(url=>{
-     if (!url || !avatar.isConnected) return;
-     image.onload=()=>avatar.classList.add('has-image');
-     image.onerror=()=>{avatar.classList.remove('has-image');image.removeAttribute('src')};
-     image.src=url;
-   }).catch(()=>{});
+     if (!url) { image.dataset.avatarState='idle'; return; }
+     if (!avatar.isConnected) { image.dataset.avatarState='idle'; return; }
+     image.onload=()=>{image.dataset.avatarState='loaded';avatar.classList.add('has-image')};
+     image.onerror=()=>{image.dataset.avatarState='idle';avatar.classList.remove('has-image');image.removeAttribute('src')};
+     if (image.getAttribute('src') === url && image.complete && image.naturalWidth) image.onload(); else image.src=url;
+   }).catch(()=>{image.dataset.avatarState='idle'});
  };
  const presenceGroupIsLive = channel => {
    const key=String(channel||'').toLowerCase().replace(/\s+/g,'');
@@ -1153,22 +1217,30 @@ javascript:(async function(){
    });
  };
  const presenceChannelKey = channel => String(channel||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+ const getPresenceUserRow = (user,channel,sidebar) => {
+   const login=String(user.username||'').toLowerCase(),cache=sidebar?presenceRowCache.sidebar:presenceRowCache.panel;
+   let row=cache.get(login);
+   if (!row) {
+     row=document.createElement('div'); row.className='bajsas-presence-row'; row.dataset.presenceUser=login;
+     const avatar=document.createElement('span'); avatar.className='bajsas-presence-avatar'; avatar.style.setProperty('--avatar-hue',String(presenceAvatarHue(login))); avatar.title=`${login}'s Twitch avatar`;
+     const fallback=document.createElement('span'); fallback.textContent=(login.match(/[a-z0-9]/i)?.[0]||'?').toUpperCase();
+     const image=document.createElement('img'); image.alt=''; image.decoding='async'; image.loading='lazy'; image.referrerPolicy='no-referrer';
+     const dot=document.createElement('i'); dot.className='bajsas-presence-dot'; dot.title='Connected';
+     avatar.append(fallback,image,dot);
+     const name=document.createElement('span'); name.className='bajsas-presence-user'; name.textContent=login;
+     row.append(avatar,name); cache.set(login,row);
+   }
+   row.title=`${login} connected to ${channel}`;
+   loadPresenceAvatar(row.querySelector('.bajsas-presence-avatar'),row.querySelector('img'),login);
+   return row;
+ };
  const makePresenceUserList = (group,sidebar=false) => {
    const userList=document.createElement('div'); userList.className='bajsas-presence-users'+(sidebar?' bajsas-sidebar-presence':''); userList.dataset.presenceChannel=group.channel;
    userList.setAttribute('aria-label',`${group.users.length} connected to ${group.channel}`);
    userList.classList.toggle('is-collapsed',sidebar&&collapsedPresenceGroups.has(group.key));
    const limit=3,expanded=sidebar&&expandedPresenceGroups.has(group.key);
    const shown=sidebar&&!expanded?group.users.slice(0,limit):group.users;
-   for (const user of shown) {
-     const row=document.createElement('div'); row.className='bajsas-presence-row'; row.dataset.presenceUser=user.username; row.title=`${user.username} connected to ${group.channel}`;
-     const avatar=document.createElement('span'); avatar.className='bajsas-presence-avatar'; avatar.style.setProperty('--avatar-hue',String(presenceAvatarHue(user.username))); avatar.title=`${user.username}'s Twitch avatar`;
-     const fallback=document.createElement('span'); fallback.textContent=(String(user.username).match(/[a-z0-9]/i)?.[0]||'?').toUpperCase();
-     const image=document.createElement('img'); image.alt=''; image.decoding='async'; image.loading='lazy'; image.referrerPolicy='no-referrer';
-     const dot=document.createElement('i'); dot.className='bajsas-presence-dot'; dot.title='Connected';
-     avatar.append(fallback,image,dot);
-     const name=document.createElement('span'); name.className='bajsas-presence-user'; name.textContent=user.username;
-     row.append(avatar,name); userList.appendChild(row); loadPresenceAvatar(avatar,image,user.username);
-   }
+   for (const user of shown) userList.appendChild(getPresenceUserRow(user,group.channel,sidebar));
    if (sidebar&&group.users.length>limit) {
      const more=document.createElement('button'); more.type='button'; more.className='bajsas-presence-more';
      more.textContent=expanded?'Show less':`+${group.users.length-limit} more`;
@@ -1217,6 +1289,8 @@ javascript:(async function(){
  };
  const renderPresence = () => {
    const users = [...bPresenceUsers.values()].filter(user => user.online);
+   const onlineLogins=new Set(users.map(user=>String(user.username||'').toLowerCase()));
+   for (const cache of [presenceRowCache.sidebar,presenceRowCache.panel]) for (const [login,row] of cache) if (!onlineLogins.has(login)) { row.remove(); cache.delete(login); }
    presenceButton.textContent = `Online ${users.length}`;
    presencePanel.replaceChildren();
    const panelTitle=document.createElement('div'); panelTitle.className='bajsas-presence-title';
@@ -1602,7 +1676,7 @@ const confirmNotif=mediaPanel.querySelector('[data-media-confirm]'); if(confirmN
  document.addEventListener('pointerdown',event=>{if(mediaProviderMenu.classList.contains('show')&&!mediaProviderWrap.contains(event.target))mediaProviderMenu.classList.remove('show')},true);
  document.addEventListener('keydown',event=>{if(event.key==='Escape')mediaProviderMenu.classList.remove('show')});
 
- mediaButton.onclick=()=>{pixelClose();snakeExit();destroyMediaPlayer();box.classList.add('bajsas-main2-selector');restoreMain2SelectorY();bGameUiEnabled=false;bGameModal.classList.remove('show');v.muted=true;i.src='';i.style.display='none';bActiveStream='MAIN 2';bLastProcessedCh='MAIN 2';bPing('watch:MAIN 2');bRefreshChatUser(bGetUser());mediaPanel.classList.add('show');mediaSetLoading(true);syncMediaClock();sendMedia({type:'media_get'});setActive(mediaButton)};mediaPanel.querySelector('[data-media-close]').onclick=()=>nativeBtn.click();mediaPanel.querySelector('[data-media-add]').onclick=()=>{if(mediaInput.value.trim()){sendMedia({type:'media_request',query:mediaInput.value.trim()});mediaInput.value=''}};mediaPanel.querySelector('[data-media-vote]').onclick=()=>sendMedia({type:'media_vote_skip'});
+ mediaButton.onclick=(event)=>{const joiningNewChannel=activeBtn!==mediaButton;pixelClose();snakeExit();destroyMediaPlayer();box.classList.add('bajsas-main2-selector');restoreMain2SelectorY();bGameUiEnabled=false;bGameModal.classList.remove('show');v.muted=true;i.src='';i.style.display='none';bActiveStream='MAIN 2';bLastProcessedCh='MAIN 2';bPing('watch:MAIN 2');bRefreshChatUser(bGetUser());mediaPanel.classList.add('show');mediaSetLoading(true);syncMediaClock();sendMedia({type:'media_get'});setActive(mediaButton);if(joiningNewChannel&&event?.isTrusted)playChannelJoinSound('MAIN 2')};mediaPanel.querySelector('[data-media-close]').onclick=()=>nativeBtn.click();mediaPanel.querySelector('[data-media-add]').onclick=()=>{if(mediaInput.value.trim()){sendMedia({type:'media_request',query:mediaInput.value.trim()});mediaInput.value=''}};mediaPanel.querySelector('[data-media-vote]').onclick=()=>sendMedia({type:'media_vote_skip'});
  mediaButton.addEventListener('mouseenter',()=>{const cur=mediaLastState?.current;if(!cur)return;if(!mediaHoverCard){mediaHoverCard=document.createElement('div');mediaHoverCard.className='bajsas-stream-preview';document.body.appendChild(mediaHoverCard)}mediaHoverCard.replaceChildren();if(cur.poster){const img=document.createElement('img');img.src=cur.poster;img.alt='';mediaHoverCard.appendChild(img)}const title=document.createElement('div');title.className='bajsas-stream-preview-title';title.textContent=cur.title+(cur.year?' ('+cur.year+')':'');const meta=document.createElement('div');meta.className='bajsas-stream-preview-meta';meta.textContent='Now playing • requested by '+cur.requestedBy;mediaHoverCard.append(title,meta);const r=mediaButton.getBoundingClientRect();mediaHoverCard.style.display='block';mediaHoverCard.style.left=Math.max(8,Math.min(innerWidth-300,r.left))+'px';mediaHoverCard.style.top=(r.bottom+8)+'px';requestAnimationFrame(()=>mediaHoverCard.classList.add('show'))});mediaButton.addEventListener('mouseleave',()=>{mediaHoverCard?.classList.remove('show');setTimeout(()=>{if(mediaHoverCard&&!mediaHoverCard.classList.contains('show'))mediaHoverCard.style.display='none'},180)});
  let bws = null, bwsTimer = null;
  let bid = '';
