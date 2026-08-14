@@ -738,7 +738,7 @@ javascript:(async function bajsasLaunchAttempt(){
 
  const label = document.createElement('div');
  label.className = 'bajsas-channel-header';
- label.innerText = 'Creatures Channels';
+ label.innerText = 'BajSAS Streams';
  label.style.cssText = 'font-size:11px;font-weight:bold;text-transform:uppercase;opacity:0.72;letter-spacing:0.5px;line-height:18px;display:flex;align-items:center;gap:4px;';
  box.appendChild(label);
 
